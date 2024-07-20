@@ -1,0 +1,10 @@
+[package]
+name = "lexer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+src_manager = { path = "../src_manager" }
+frontend_errors = { path = "../frontend_errors" }
+unicode-ident = "1.0.12"
+phf = { version = "0.11", features = ["macros"] }

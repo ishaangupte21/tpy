@@ -1,0 +1,8 @@
+[package]
+name = "frontend_errors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+src_manager = { path = "../src_manager" }
+unicode-width = "0.1.11"
