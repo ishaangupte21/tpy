@@ -88,4 +88,12 @@ impl SrcFileMetadata<'_> {
     pub fn get_src_file_text<'a>(&'a self, span: &Span) -> &'a str {
         &self.contents[span.start..span.end]
     }
+
+    pub fn get_src_file_text_checked<'a>(&'a self, span: &Span) -> &'a str {
+        if span.end < self.contents.len() {
+            &self.contents[span.start..span.end]
+        } else {
+            &self.contents[span.start..]
+        }
+    }
 }

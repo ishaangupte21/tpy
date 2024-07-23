@@ -1,10 +1,10 @@
 [package]
-name = "frontend_driver"
+name = "parser"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-src_manager = { path = "../src_manager" }
 lexer = { path = "../lexer" }
-parser = { path = "../parser" }
 ast = { path = "../ast" }
+src_manager = { path = "../src_manager" }
+frontend_errors = { path = "../frontend_errors" }

@@ -3,10 +3,19 @@
 version = 3
 
 [[package]]
+name = "ast"
+version = "0.1.0"
+dependencies = [
+ "src_manager",
+]
+
+[[package]]
 name = "frontend_driver"
 version = "0.1.0"
 dependencies = [
+ "ast",
  "lexer",
+ "parser",
  "src_manager",
 ]
 
@@ -26,6 +35,16 @@ dependencies = [
  "phf",
  "src_manager",
  "unicode-ident",
+]
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "frontend_errors",
+ "lexer",
+ "src_manager",
 ]
 
 [[package]]

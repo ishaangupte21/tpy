@@ -35,7 +35,12 @@ pub fn report_frontend_error(msg: &str, loc: Span, metadata: &SrcFileMetadata) {
     }
 
     // Now, compute the width of the offending text.
-    let offending_text_render_width = metadata.get_src_file_text(&loc).width();
+    // If the offending text is at the end, we must add one to the width as the computation will yield 0.
+    let offending_text_render_width = match metadata.get_src_file_text_checked(&loc).width() {
+        val if loc.end >= metadata.contents.len() => val + 1,
+        val => val,
+    };
+
     for _ in 0..offending_text_render_width {
         let _ = buffer.write(b"^");
     }

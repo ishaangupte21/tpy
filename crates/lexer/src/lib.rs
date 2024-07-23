@@ -14,7 +14,7 @@ mod keywords;
 pub mod token;
 
 pub struct Lexer<'a> {
-    metadata: &'a SrcFileMetadata<'a>,
+    pub metadata: &'a SrcFileMetadata<'a>,
     chars: Chars<'a>,
     remaining: usize,
     indentation_stack: Vec<i32>,
