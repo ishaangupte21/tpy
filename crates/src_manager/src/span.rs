@@ -14,6 +14,10 @@ impl Span {
     pub fn len(&self) -> usize {
         self.end - self.start
     }
+
+    pub fn empty() -> Self {
+        Self { start: 0, end: 0 }
+    }
 }
 
 impl Add for Span {

@@ -1,7 +1,6 @@
 /*
    Implementation of the individual AST Node types.
 */
-use crate::ASTNode;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -19,8 +18,12 @@ pub enum ASTNodeType {
     BinaryIntLiteral,
     SingleQuoteStrLiteral,
     DoubleQuoteStrLiteral,
+    ListLiteral,
+    DictLiteral,
     Identifier,
     ParenExpr,
     AttrRefExpr,
     CallExpr,
+    DictExpr,
+    DictKeyValuePair,
 }

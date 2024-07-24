@@ -27,7 +27,7 @@ impl Parser<'_> {
         // Here, we will create a single empty node list that can be used throughout as there is no difference.
         abstract_syntax_tree.push(ASTNode::new(
             ASTNodeType::EmptyNodeList,
-            Span::new(0, 0),
+            Span::empty(),
             0,
             0,
         ));
@@ -59,6 +59,10 @@ impl Parser<'_> {
         self.parse_py_expr()
     }
 
+    fn parse_py_expr(&mut self) -> ReturnType {
+        self.parse_py_primary_expr()
+    }
+
     fn parse_py_expr_list(&mut self) -> ReturnType {
         // We need a single expression first.
         let first_expr = self.parse_py_expr()?;
@@ -77,7 +81,7 @@ impl Parser<'_> {
                 Ok(expr) => expr,
                 Err(has_error_been_handled) => {
                     if !has_error_been_handled {
-                        self.report_parse_error("expected expression after ','", next_expr_start);
+                        self.report_parse_error("expected expression after ','.", next_expr_start);
                     }
 
                     return Err(true);
@@ -96,10 +100,6 @@ impl Parser<'_> {
         ));
 
         Ok(self.abstract_syntax_tree.len() - 1)
-    }
-
-    fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_primary_expr()
     }
 
     /*
@@ -135,6 +135,16 @@ impl Parser<'_> {
             }
 
             TokenKind::LeftParen => match self.parse_py_paren_expr() {
+                Ok(expr) => expr,
+                Err(_) => return Err(true),
+            },
+
+            TokenKind::LeftSquare => match self.parse_py_list_expr() {
+                Ok(expr) => expr,
+                Err(_) => return Err(true),
+            },
+
+            TokenKind::LeftCurly => match self.parse_py_dict_expr() {
                 Ok(expr) => expr,
                 Err(_) => return Err(true),
             },
@@ -196,7 +206,7 @@ impl Parser<'_> {
             Ok(expr) => expr,
             Err(has_been_reported) => {
                 if !has_been_reported {
-                    self.report_parse_error("expected expression after '('", inner_expr_start);
+                    self.report_parse_error("expected expression after '('.", inner_expr_start);
                 }
                 return Err(true);
             }
@@ -204,7 +214,7 @@ impl Parser<'_> {
 
         // Now, we need to have a right parenthesis to close.
         if !self.expect(TokenKind::RightParen) {
-            self.report_parse_error("expected closing ')'", self.tok.span);
+            self.report_parse_error("expected closing ')'.", self.tok.span);
             return Err(true);
         }
 
@@ -233,7 +243,7 @@ impl Parser<'_> {
         // Now, we must have an identifier.
         if !self.expect(TokenKind::Identifier) {
             self.report_parse_error(
-                "expected identifier after '.' in attribute reference expression",
+                "expected identifier after '.' in attribute reference expression.",
                 self.tok.span,
             );
             return Err(true);
@@ -264,7 +274,7 @@ impl Parser<'_> {
             // Now, we need an identifier.
             if !self.expect(TokenKind::Identifier) {
                 self.report_parse_error(
-                    "expected identifier after '.' in attribute reference expression",
+                    "expected identifier after '.' in attribute reference expression.",
                     self.tok.span,
                 );
                 return Err(true);
@@ -314,7 +324,7 @@ impl Parser<'_> {
             Err(has_error_been_reporting) => {
                 if !has_error_been_reporting {
                     self.report_parse_error(
-                        "expected expression as argument after '(' in call expression",
+                        "expected expression as argument after '(' in call expression.",
                         first_arg_start,
                     );
                 }
@@ -325,7 +335,7 @@ impl Parser<'_> {
 
         // Now, we need to have a closing right parenthesis.
         if !self.expect(TokenKind::RightParen) {
-            self.report_parse_error("expected closing ')' in calling expression", self.tok.span);
+            self.report_parse_error("expected closing ')' in calling expression.", self.tok.span);
             return Err(true);
         }
 
@@ -338,6 +348,205 @@ impl Parser<'_> {
             start + rparen_span,
             call_expr_args,
             0,
+        ));
+
+        Ok(self.abstract_syntax_tree.len() - 1)
+    }
+
+    fn parse_py_list_expr(&mut self) -> ReturnType {
+        // First, we must mark the start of the square bracket and consume it.
+        let lsquare_start = self.tok.span;
+        // Before we advance, we must tell the lexer to stop scanning newlines as the Python spec allows curly braces to be spread over lines.
+        self.lexer.skip_newlines();
+
+        self.advance();
+
+        // First, we will check for the special case in which we have an empty list.
+        if self.expect(TokenKind::RightSquare) {
+            // Add the node to the AST.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::ListLiteral,
+                lsquare_start + self.tok.span,
+                self.empty_node_list_index,
+                0,
+            ));
+
+            // Consume the ']'
+            self.advance();
+
+            return Ok(self.abstract_syntax_tree.len() - 1);
+        }
+
+        // Otherwise, we need an expression list.
+        let expr_list_start = self.tok.span;
+
+        let expr_list = match self.parse_py_expr_list() {
+            Ok(list) => list,
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error(
+                        "expected expression after '[' in list.",
+                        expr_list_start,
+                    );
+                }
+
+                return Err(true);
+            }
+        };
+
+        // Now, we need a right square bracket.
+        if !self.expect(TokenKind::RightSquare) {
+            self.report_parse_error("expected ']' at the end of a list literal.", self.tok.span);
+            return Err(true);
+        }
+
+        // Consume the ']'
+        let rsquare_span = self.tok.span;
+
+        // We also need to tell the lexer to resume scanning newlines.
+        self.lexer.accept_newlines();
+        self.advance();
+
+        // Insert the node.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::ListLiteral,
+            lsquare_start + rsquare_span,
+            expr_list,
+            0,
+        ));
+
+        Ok(self.abstract_syntax_tree.len() - 1)
+    }
+
+    fn parse_py_dict_expr(&mut self) -> ReturnType {
+        // First, we need to mark and consume the left curly brace.
+        let lcurly_start = self.tok.span;
+
+        // Before we advance, we must tell the lexer to stop scanning newlines as the Python spec allows curly braces to be spread over lines.
+        self.lexer.skip_newlines();
+
+        self.advance();
+
+        // Special case for empty dictionary.
+        if self.expect(TokenKind::RightCurly) {
+            // Create the node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::DictExpr,
+                lcurly_start + self.tok.span,
+                self.empty_node_list_index,
+                0,
+            ));
+
+            // Consume the right curly brace.
+            self.advance();
+
+            return Ok(self.abstract_syntax_tree.len() - 1);
+        }
+
+        // Now, we must have a key value pair.
+        let first_key_value_pair = match self.parse_py_dict_key_val_pair() {
+            Ok(pair) => pair,
+            Err(_) => return Err(true),
+        };
+
+        let mut key_value_pairs = vec![first_key_value_pair];
+
+        // Now, while we have comments, we need to keep parsing key/value pairs.
+        while self.expect(TokenKind::Comma) {
+            // Consume the comma.
+            self.advance();
+
+            // If the pair is successfully parsed, add it to the vector.
+            match self.parse_py_dict_key_val_pair() {
+                Ok(pair) => key_value_pairs.push(pair),
+                Err(_) => return Err(true),
+            };
+        }
+
+        // Now, we need a closing right parenthesis.
+        if !self.expect(TokenKind::RightCurly) {
+            self.report_parse_error("expected closing '}' in dictionary.", self.tok.span);
+            return Err(true);
+        }
+
+        // Create the node for the key/value pair list.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::NodeList(key_value_pairs),
+            Span::empty(),
+            0,
+            0,
+        ));
+
+        // Now, we must create the node for the actual dictionary.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::DictExpr,
+            lcurly_start + self.tok.span,
+            // Position of the list.
+            self.abstract_syntax_tree.len() - 1,
+            0,
+        ));
+
+        // Consume the right curly and tell the lexer to resume scanning newlines.
+        self.lexer.accept_newlines();
+        self.advance();
+
+        Ok(self.abstract_syntax_tree.len() - 1)
+    }
+
+    /*
+       This function parses the key/value pairs inside a dict literal.
+       <expr> : <expr>
+    */
+    fn parse_py_dict_key_val_pair(&mut self) -> ReturnType {
+        let key_expr_start = self.tok.span;
+        let key_expr = match self.parse_py_expr() {
+            Ok(expr) => expr,
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error(
+                        "expected expression as key in dictionary.",
+                        key_expr_start,
+                    );
+                }
+
+                return Err(true);
+            }
+        };
+
+        // Now, we need a colon.
+        if !self.expect(TokenKind::Colon) {
+            self.report_parse_error(
+                "expected ':' between key and value expressions in dictionary.",
+                self.tok.span,
+            );
+            return Err(true);
+        }
+
+        // Consume the colon.
+        self.advance();
+
+        // Now, we need the value expression.
+        let val_expr_start = self.tok.span;
+        let val_expr = match self.parse_py_expr() {
+            Ok(expr) => expr,
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error(
+                        "expected expression as value after ':' in dictionary.",
+                        val_expr_start,
+                    );
+                }
+
+                return Err(true);
+            }
+        };
+
+        // Now, we can create the node and add it to the tree.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::DictKeyValuePair,
+            Span::empty(),
+            key_expr,
+            val_expr,
         ));
 
         Ok(self.abstract_syntax_tree.len() - 1)
