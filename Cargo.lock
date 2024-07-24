@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "frontend_driver"
+name = "compiler_driver"
 version = "0.1.0"
 dependencies = [
  "ast",
@@ -147,7 +147,7 @@ dependencies = [
 name = "tpy"
 version = "0.1.0"
 dependencies = [
- "frontend_driver",
+ "compiler_driver",
 ]
 
 [[package]]

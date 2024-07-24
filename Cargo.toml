@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-frontend_driver = { path = "./crates/frontend_driver" }
+compiler_driver = { path = "./crates/compiler_driver" }

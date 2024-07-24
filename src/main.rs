@@ -1,6 +1,6 @@
 use std::{env::args, process::exit};
 
-use frontend_driver::run_compiler_frontend;
+use compiler_driver::run_compiler;
 
 // Entry point
 fn main() {
@@ -15,7 +15,7 @@ fn main() {
 
     // Take the source file path and run the compiler frontend.
     // Wrapping it in a function allows the source file contents and AST to be dropped once they are no longer needed.
-    match run_compiler_frontend(&src_file_path) {
+    match run_compiler(&src_file_path) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("error: {e}");

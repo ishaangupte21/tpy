@@ -7,7 +7,7 @@ use parser::Parser;
 use src_manager::SrcFileMetadata;
 use std::io::Result;
 
-pub fn run_compiler_frontend(src_file_path: &str) -> Result<()> {
+pub fn run_compiler(src_file_path: &str) -> Result<()> {
     // First, we need to get the file metadata.
     let src_file_metadata = SrcFileMetadata::open_and_analyze_src_file(&src_file_path)?;
 
