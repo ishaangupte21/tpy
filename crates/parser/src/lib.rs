@@ -68,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_prefix_op_expr()
+        self.parse_py_addition_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -652,5 +652,84 @@ impl Parser<'_> {
             // If not, we must parse the exponentiation expression and return its result.
             self.parse_py_exponentiation_expr()
         }
+    }
+
+    fn parse_py_multiplication_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_prefix_op_expr()?;
+
+        // Now, while we have operators, we need to keep parsing RHS expressions.
+        while matches!(
+            self.tok.kind,
+            TokenKind::Asterisk | TokenKind::Slash | TokenKind::SlashSlash | TokenKind::Percent
+        ) {
+            let op = self.tok.kind;
+            // Consume the operator.
+            self.advance();
+
+            // Now, we need a RHS
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_prefix_op_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(op),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_addition_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_multiplication_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while matches!(self.tok.kind, TokenKind::Plus | TokenKind::Minus) {
+            let op = self.tok.kind;
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_multiplication_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(op),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
     }
 }
