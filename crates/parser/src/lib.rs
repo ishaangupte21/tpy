@@ -41,6 +41,14 @@ impl Parser<'_> {
         }
     }
 
+    fn get_span(&self, index: usize) -> Span {
+        self.abstract_syntax_tree[index].span
+    }
+
+    fn last_ast_index(&self) -> usize {
+        self.abstract_syntax_tree.len() - 1
+    }
+
     fn advance(&mut self) {
         self.tok = self.lexer.next();
     }
@@ -60,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_primary_expr()
+        self.parse_py_exponentiation_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -99,7 +107,7 @@ impl Parser<'_> {
             0,
         ));
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
     }
 
     /*
@@ -187,7 +195,7 @@ impl Parser<'_> {
 
         self.advance();
 
-        self.abstract_syntax_tree.len() - 1
+        self.last_ast_index()
     }
 
     /*
@@ -230,7 +238,7 @@ impl Parser<'_> {
             0,
         ));
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
     }
 
     /*
@@ -263,7 +271,7 @@ impl Parser<'_> {
 
         // Now, that newly created node is the LHS for the following expressions, if they exist.
         // However, we need to maintain the index to the first LHS expression as they are left associative.
-        let initial_lhs = self.abstract_syntax_tree.len() - 1;
+        let initial_lhs = self.last_ast_index();
         let mut lhs = initial_lhs;
 
         // We must keep parsing attribute ref expressions while dots exist.
@@ -292,12 +300,15 @@ impl Parser<'_> {
             ));
 
             // Set the new LHS to the newly created expression.
-            lhs = self.abstract_syntax_tree.len() - 1;
+            lhs = self.last_ast_index();
         }
 
         Ok(initial_lhs)
     }
 
+    /*
+       This method parses python call expressions.
+    */
     fn parse_py_call_expr(&mut self, callee_expr: usize, start: Span) -> ReturnType {
         // Consume the left parenthesis.
         self.advance();
@@ -313,7 +324,7 @@ impl Parser<'_> {
                 self.empty_node_list_index,
             ));
 
-            return Ok(self.abstract_syntax_tree.len() - 1);
+            return Ok(self.last_ast_index());
         }
 
         // Otherwise, we must have call arguments in the form of an expression list.
@@ -350,9 +361,13 @@ impl Parser<'_> {
             0,
         ));
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
     }
 
+    /*
+       This method parses python list literals.
+       It is a list of expressions enclosed by square brackets.
+    */
     fn parse_py_list_expr(&mut self) -> ReturnType {
         // First, we must mark the start of the square bracket and consume it.
         let lsquare_start = self.tok.span;
@@ -374,7 +389,7 @@ impl Parser<'_> {
             // Consume the ']'
             self.advance();
 
-            return Ok(self.abstract_syntax_tree.len() - 1);
+            return Ok(self.last_ast_index());
         }
 
         // Otherwise, we need an expression list.
@@ -415,9 +430,13 @@ impl Parser<'_> {
             0,
         ));
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
     }
 
+    /*
+       This method parses python dictionary literals.
+       It is essentialy a list of key value pairs enclosed by two curly braces.
+    */
     fn parse_py_dict_expr(&mut self) -> ReturnType {
         // First, we need to mark and consume the left curly brace.
         let lcurly_start = self.tok.span;
@@ -440,7 +459,7 @@ impl Parser<'_> {
             // Consume the right curly brace.
             self.advance();
 
-            return Ok(self.abstract_syntax_tree.len() - 1);
+            return Ok(self.last_ast_index());
         }
 
         // Now, we must have a key value pair.
@@ -482,7 +501,7 @@ impl Parser<'_> {
             ASTNodeType::DictExpr,
             lcurly_start + self.tok.span,
             // Position of the list.
-            self.abstract_syntax_tree.len() - 1,
+            self.last_ast_index(),
             0,
         ));
 
@@ -490,7 +509,7 @@ impl Parser<'_> {
         self.lexer.accept_newlines();
         self.advance();
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
     }
 
     /*
@@ -549,6 +568,45 @@ impl Parser<'_> {
             val_expr,
         ));
 
-        Ok(self.abstract_syntax_tree.len() - 1)
+        Ok(self.last_ast_index())
+    }
+
+    fn parse_py_exponentiation_expr(&mut self) -> ReturnType {
+        // We don't need to report LHS errors at this level.
+        let lhs = self.parse_py_primary_expr()?;
+
+        // Because this is a right associative operator, it cannot be handled with a loop and must be handled recursively.
+        if self.expect(TokenKind::AsteriskAsterisk) {
+            // Consume the operator.
+            self.advance();
+
+            // We need the right hand side now.
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_exponentiation_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after '**', which is a binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Create the node here.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::AsteriskAsterisk),
+                self.get_span(lhs) + self.get_span(rhs),
+                lhs,
+                rhs,
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            Ok(lhs)
+        }
     }
 }

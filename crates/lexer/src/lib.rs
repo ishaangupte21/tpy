@@ -255,7 +255,7 @@ impl Lexer<'_> {
                         self.advance();
                         TokenKind::AsteriskAsteriskEquals
                     }
-                    _ => TokenKind::Asterisk,
+                    _ => TokenKind::AsteriskAsterisk,
                 }
             }
             _ => TokenKind::Asterisk,

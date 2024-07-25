@@ -3,6 +3,8 @@
 */
 use std::fmt::Debug;
 
+use lexer::token::TokenKind;
+
 #[derive(Debug)]
 pub enum ASTNodeType {
     // This type is needed to store lists of nodes
@@ -26,4 +28,9 @@ pub enum ASTNodeType {
     CallExpr,
     DictExpr,
     DictKeyValuePair,
+
+    // Compound Expressions
+
+    // The binary expression needs an operator, which is a TokenKind taken directly from the token.
+    BinaryExpr(TokenKind),
 }
