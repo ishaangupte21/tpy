@@ -25,7 +25,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenKind {
     Dummy,
     End,

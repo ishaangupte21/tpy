@@ -33,4 +33,7 @@ pub enum ASTNodeType {
 
     // The binary expression needs an operator, which is a TokenKind taken directly from the token.
     BinaryExpr(TokenKind),
+
+    // The prefix operator expression also needs an operator.
+    PrefixOpExpr(TokenKind),
 }

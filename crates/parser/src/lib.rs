@@ -68,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_exponentiation_expr()
+        self.parse_py_prefix_op_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -607,6 +607,50 @@ impl Parser<'_> {
             Ok(self.last_ast_index())
         } else {
             Ok(lhs)
+        }
+    }
+
+    fn parse_py_prefix_op_expr(&mut self) -> ReturnType {
+        // First, we need to check for a prefix operator.
+        // If there is one, we need to handle it and its following expression.
+        if matches!(
+            self.tok.kind,
+            TokenKind::Plus | TokenKind::Minus | TokenKind::Tilde
+        ) {
+            let op = self.tok.kind;
+            let op_pos = self.tok.span;
+
+            // Consume the operator.
+            self.advance();
+
+            // Now, we need an expression.
+            let expr_start = self.tok.span;
+            let expr = match self.parse_py_exponentiation_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after prefix operator.",
+                            expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, create the node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::PrefixOpExpr(op),
+                op_pos + self.get_span(expr),
+                expr,
+                0,
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            // If not, we must parse the exponentiation expression and return its result.
+            self.parse_py_exponentiation_expr()
         }
     }
 }
