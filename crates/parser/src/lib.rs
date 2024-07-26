@@ -68,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_addition_expr()
+        self.parse_py_bitwise_or_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -722,6 +722,154 @@ impl Parser<'_> {
             // Now, construct an AST node.
             self.abstract_syntax_tree.push(ASTNode::new(
                 ASTNodeType::BinaryExpr(op),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_bitshift_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_addition_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while matches!(
+            self.tok.kind,
+            TokenKind::LessLess | TokenKind::GreaterGreater
+        ) {
+            let op = self.tok.kind;
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_addition_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(op),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_bitwise_and_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_bitshift_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while self.expect(TokenKind::Ampersand) {
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_bitshift_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::Ampersand),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_bitwise_xor_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_bitwise_and_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while self.expect(TokenKind::Caret) {
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_bitwise_and_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::Caret),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_bitwise_or_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_bitwise_xor_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while self.expect(TokenKind::Bar) {
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_bitwise_xor_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::Bar),
                 self.get_span(lhs) + rhs_start,
                 lhs,
                 rhs,
