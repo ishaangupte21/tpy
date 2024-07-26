@@ -29,11 +29,14 @@ pub enum ASTNodeType {
     DictExpr,
     DictKeyValuePair,
 
-    // Compound Expressions
-
     // The binary expression needs an operator, which is a TokenKind taken directly from the token.
     BinaryExpr(TokenKind),
 
     // The prefix operator expression also needs an operator.
     PrefixOpExpr(TokenKind),
+
+    // Inside part of the conditional expression, carrying the If and Else cases.
+    IfElseOptions,
+
+    IfElseExpr,
 }

@@ -81,6 +81,10 @@ pub enum TokenKind {
     EqualsEquals,
     ExclamationEquals,
 
+    // Special operators with two tokens.
+    OperatorIsNot,
+    OperatorNotIn,
+
     // Literals
     IntLiteral,
     FloatLiteral,

@@ -68,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_bitwise_or_expr()
+        self.parse_py_conditional_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -879,5 +879,280 @@ impl Parser<'_> {
         }
 
         Ok(lhs)
+    }
+
+    fn parse_py_comparison_expr(&mut self) -> ReturnType {
+        // Get the LHS.
+        let mut lhs = self.parse_py_bitwise_or_expr()?;
+
+        // Keep Searching for the Operators.
+        loop {
+            let op = match self.tok.kind {
+                TokenKind::Less => {
+                    self.advance();
+                    TokenKind::Less
+                }
+                TokenKind::LessEquals => {
+                    self.advance();
+                    TokenKind::LessEquals
+                }
+                TokenKind::Greater => {
+                    self.advance();
+                    TokenKind::Greater
+                }
+                TokenKind::ExclamationEquals => {
+                    self.advance();
+                    TokenKind::ExclamationEquals
+                }
+                TokenKind::EqualsEquals => {
+                    self.advance();
+                    TokenKind::EqualsEquals
+                }
+                TokenKind::KeywordIn => {
+                    self.advance();
+                    TokenKind::KeywordIn
+                }
+                TokenKind::KeywordIs => {
+                    self.advance();
+                    if self.expect(TokenKind::KeywordNot) {
+                        self.advance();
+                        TokenKind::OperatorIsNot
+                    } else {
+                        TokenKind::KeywordIs
+                    }
+                }
+                TokenKind::KeywordNot => {
+                    // This must be the 'not in' operator
+                    let not_op_pos = self.tok.span;
+                    self.advance();
+
+                    if !self.expect(TokenKind::KeywordIn) {
+                        self.report_parse_error("operator 'not' is a unary operator and cannot be used in a binary expression.", not_op_pos);
+                    } else {
+                        self.advance();
+                    }
+
+                    // For Parsing purposes, pretend as if the 'not in' operator was complete if it isn't.
+                    TokenKind::OperatorNotIn
+                }
+
+                // For all other tokens, break out of the loop and return the expression.
+                _ => break Ok(lhs),
+            };
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_bitwise_or_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(op),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+    }
+
+    fn parse_py_prefix_not_expr(&mut self) -> ReturnType {
+        // First, we need to check for a prefix operator.
+        // If there is one, we need to handle it and its following expression.
+        if self.expect(TokenKind::KeywordNot) {
+            let op_pos = self.tok.span;
+
+            // Consume the operator.
+            self.advance();
+
+            // Now, we need an expression.
+            let expr_start = self.tok.span;
+            let expr = match self.parse_py_comparison_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after prefix operator.",
+                            expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, create the node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::PrefixOpExpr(TokenKind::KeywordNot),
+                op_pos + self.get_span(expr),
+                expr,
+                0,
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            // If not, we must parse the exponentiation expression and return its result.
+            self.parse_py_comparison_expr()
+        }
+    }
+
+    fn parse_py_logical_and_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_prefix_not_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while self.expect(TokenKind::KeywordAnd) {
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_prefix_not_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::Bar),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_logical_or_expr(&mut self) -> ReturnType {
+        let mut lhs = self.parse_py_logical_and_expr()?;
+
+        // Parse the RHS of expressions while we have operators.
+        while self.expect(TokenKind::KeywordOr) {
+            self.advance();
+
+            let rhs_start = self.tok.span;
+            let rhs = match self.parse_py_logical_or_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after binary operator.",
+                            rhs_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, construct an AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::BinaryExpr(TokenKind::Bar),
+                self.get_span(lhs) + rhs_start,
+                lhs,
+                rhs,
+            ));
+
+            lhs = self.last_ast_index();
+        }
+
+        Ok(lhs)
+    }
+
+    fn parse_py_conditional_expr(&mut self) -> ReturnType {
+        // We first need an expression.
+        let result_expr = self.parse_py_logical_or_expr()?;
+
+        // Now, if we have 'if' we can start parsing the conditional expression.
+        if self.expect(TokenKind::KeywordIf) {
+            // Consume 'if'
+            let if_kw_pos = self.tok.span;
+            self.advance();
+
+            // Now, we need an expression for the condition.
+            let condition_expr_start = self.tok.span;
+            let condition_expr = match self.parse_py_logical_or_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after 'if' in conditional expression.",
+                            condition_expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, we need the else keyword.
+            if !self.expect(TokenKind::KeywordElse) {
+                self.report_parse_error(
+                    "expected 'else' after expression in conditional expression.",
+                    self.tok.span,
+                );
+                return Err(true);
+            }
+
+            // Consume 'else'
+            self.advance();
+
+            // Now, we need another expression for the else case.
+            let else_expr_start = self.tok.span;
+            let else_expr = match self.parse_py_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after 'else' in conditional expression.",
+                            else_expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, we need to construct the inside of the AST node.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::IfElseOptions,
+                Span::empty(),
+                condition_expr,
+                else_expr,
+            ));
+
+            // Now, we can construct the node for the full If-Else expression.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::IfElseExpr,
+                if_kw_pos + self.get_span(else_expr),
+                result_expr,
+                self.last_ast_index(),
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            // Otherwise, just return what we previously had.
+            Ok(result_expr)
+        }
     }
 }

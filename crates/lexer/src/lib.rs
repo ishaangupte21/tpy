@@ -635,9 +635,6 @@ impl Lexer<'_> {
     }
 
     fn lex_identifier_or_keyword(&mut self, start: usize) -> TokenKind {
-        // Consume the first character.
-        self.advance();
-
         // Now, keep consuming while we have identifier keywords.
         while is_xid_continue(self.peek()) {
             self.advance();
