@@ -68,7 +68,7 @@ impl Parser<'_> {
     }
 
     fn parse_py_expr(&mut self) -> ReturnType {
-        self.parse_py_conditional_expr()
+        self.parse_py_assignment_expr()
     }
 
     fn parse_py_expr_list(&mut self) -> ReturnType {
@@ -1079,10 +1079,13 @@ impl Parser<'_> {
         Ok(lhs)
     }
 
-    fn parse_py_conditional_expr(&mut self) -> ReturnType {
-        // We first need an expression.
+    fn parse_py_conditional_expr_start(&mut self) -> ReturnType {
         let result_expr = self.parse_py_logical_or_expr()?;
 
+        self.parse_py_conditional_expr_continue(result_expr)
+    }
+
+    fn parse_py_conditional_expr_continue(&mut self, result_expr: usize) -> ReturnType {
         // Now, if we have 'if' we can start parsing the conditional expression.
         if self.expect(TokenKind::KeywordIf) {
             // Consume 'if'
@@ -1153,6 +1156,49 @@ impl Parser<'_> {
         } else {
             // Otherwise, just return what we previously had.
             Ok(result_expr)
+        }
+    }
+
+    fn parse_py_assignment_expr(&mut self) -> ReturnType {
+        // If we have an identifier, then we possibly have an assignment expression.
+        if self.expect(TokenKind::Identifier) {
+            let id_expr = self.parse_py_literal_expr_or_identifier(ASTNodeType::Identifier);
+
+            // Now, if the following operator is a walrus, we need to construct an assignment expression.
+            if self.expect(TokenKind::ColonEquals) {
+                self.advance();
+
+                // Now, we need another expression.
+                let rhs_start = self.tok.span;
+                let rhs = match self.parse_py_expr() {
+                    Ok(expr) => expr,
+                    Err(has_err_been_reported) => {
+                        if !has_err_been_reported {
+                            self.report_parse_error(
+                                "expected expression after ':=' in assignment expression.",
+                                rhs_start,
+                            );
+                        }
+
+                        return Err(true);
+                    }
+                };
+
+                // Create the node.
+                self.abstract_syntax_tree.push(ASTNode::new(
+                    ASTNodeType::BinaryExpr(TokenKind::ColonEquals),
+                    self.get_span(id_expr) + self.get_span(rhs),
+                    id_expr,
+                    rhs,
+                ));
+
+                Ok(self.last_ast_index())
+            } else {
+                // Otherwise, we must continue parsing using the other side of the condition expression.
+                self.parse_py_conditional_expr_continue(id_expr)
+            }
+        } else {
+            self.parse_py_conditional_expr_start()
         }
     }
 }
