@@ -13,6 +13,7 @@ use src_manager::span::Span;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     tok: Token,
+    la_2: Token,
     has_seen_parse_error: bool,
     abstract_syntax_tree: &'a mut Vec<ASTNode>,
     empty_node_list_index: usize,
@@ -35,6 +36,7 @@ impl Parser<'_> {
         Parser {
             lexer,
             tok: Token::dummy(),
+            la_2: Token::dummy(),
             has_seen_parse_error: false,
             abstract_syntax_tree,
             empty_node_list_index: 0,
@@ -50,7 +52,16 @@ impl Parser<'_> {
     }
 
     fn advance(&mut self) {
-        self.tok = self.lexer.next();
+        if self.la_2.kind == TokenKind::Dummy {
+            self.tok = self.lexer.next()
+        } else {
+            self.tok = self.la_2.clone();
+            self.la_2.kind = TokenKind::Dummy
+        }
+    }
+
+    fn get_second_lookahead(&mut self) {
+        self.la_2 = self.lexer.next()
     }
 
     fn expect(&self, kind: TokenKind) -> bool {
@@ -64,9 +75,12 @@ impl Parser<'_> {
 
     pub fn parse_py_compilation_unit(&mut self) -> ReturnType {
         self.advance();
-        self.parse_py_expr()
+        self.parse_py_stmt()
     }
 
+    /*
+      Expression parsing
+    */
     fn parse_py_expr(&mut self) -> ReturnType {
         self.parse_py_assignment_expr()
     }
@@ -1079,13 +1093,9 @@ impl Parser<'_> {
         Ok(lhs)
     }
 
-    fn parse_py_conditional_expr_start(&mut self) -> ReturnType {
+    fn parse_py_conditional_expr(&mut self) -> ReturnType {
         let result_expr = self.parse_py_logical_or_expr()?;
 
-        self.parse_py_conditional_expr_continue(result_expr)
-    }
-
-    fn parse_py_conditional_expr_continue(&mut self, result_expr: usize) -> ReturnType {
         // Now, if we have 'if' we can start parsing the conditional expression.
         if self.expect(TokenKind::KeywordIf) {
             // Consume 'if'
@@ -1160,33 +1170,31 @@ impl Parser<'_> {
     }
 
     fn parse_py_assignment_expr(&mut self) -> ReturnType {
-        // If we have an identifier, then we possibly have an assignment expression.
+        // First, we need to check for an identifier as that may yield an assignment expression.
         if self.expect(TokenKind::Identifier) {
-            let id_expr = self.parse_py_literal_expr_or_identifier(ASTNodeType::Identifier);
-
-            // Now, if the following operator is a walrus, we need to construct an assignment expression.
-            if self.expect(TokenKind::ColonEquals) {
+            // We need another lookahead token to check for the walrus operator.
+            self.get_second_lookahead();
+            if self.la_2.kind == TokenKind::ColonEquals {
+                // Now, we have the assignment expression.
+                let id_expr = self.parse_py_literal_expr_or_identifier(ASTNodeType::Identifier);
+                // We also need to consume the following token as that goes to tok.
                 self.advance();
 
-                // Now, we need another expression.
+                // Now, we need an expression for the RHS.
                 let rhs_start = self.tok.span;
                 let rhs = match self.parse_py_expr() {
                     Ok(expr) => expr,
                     Err(has_err_been_reported) => {
                         if !has_err_been_reported {
-                            self.report_parse_error(
-                                "expected expression after ':=' in assignment expression.",
-                                rhs_start,
-                            );
+                            self.report_parse_error("expected expression after ':='.", rhs_start);
                         }
 
                         return Err(true);
                     }
                 };
 
-                // Create the node.
                 self.abstract_syntax_tree.push(ASTNode::new(
-                    ASTNodeType::BinaryExpr(TokenKind::ColonEquals),
+                    ASTNodeType::AssignmentExpr,
                     self.get_span(id_expr) + self.get_span(rhs),
                     id_expr,
                     rhs,
@@ -1194,11 +1202,141 @@ impl Parser<'_> {
 
                 Ok(self.last_ast_index())
             } else {
-                // Otherwise, we must continue parsing using the other side of the condition expression.
-                self.parse_py_conditional_expr_continue(id_expr)
+                self.parse_py_conditional_expr()
             }
         } else {
-            self.parse_py_conditional_expr_start()
+            self.parse_py_conditional_expr()
+        }
+    }
+
+    fn is_py_expr_first(&self) -> bool {
+        matches!(
+            self.tok.kind,
+            TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
+                | TokenKind::DoubleQuoteStringLiteral
+                | TokenKind::SingleQuoteStringLiteral
+                | TokenKind::KeywordTrue
+                | TokenKind::KeywordFalse
+                | TokenKind::Identifier
+                | TokenKind::LeftParen
+                | TokenKind::LeftSquare
+                | TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::Tilde
+                | TokenKind::KeywordNot
+                | TokenKind::BinaryIntLiteral
+                | TokenKind::HexIntLiteral
+                | TokenKind::OctalIntLiteral
+        )
+    }
+
+    /*
+       Statement parsing
+    */
+    fn parse_py_stmt(&mut self) -> ReturnType {
+        // First, we need to allow newlines between the statements.
+        while self.expect(TokenKind::Newline) {
+            self.advance();
+        }
+
+        // Now, we must begin parsing statements depending on the first token.
+        let stmt = match self.tok.kind {
+            TokenKind::KeywordPass => self.parse_py_pass_stmt(),
+            TokenKind::KeywordReturn => self.parse_py_return_stmt(),
+            _ => todo!(),
+        };
+
+        stmt
+    }
+
+    fn parse_py_stmt_end(&mut self) -> bool {
+        match self.tok.kind {
+            TokenKind::Newline | TokenKind::Semicolon => {
+                self.advance();
+                true
+            }
+            TokenKind::End => true,
+            _ => false,
+        }
+    }
+
+    /*
+       This method parses Python 'pass' statments.
+    */
+    fn parse_py_pass_stmt(&mut self) -> ReturnType {
+        // There is nothing in this statement after the 'pass' keyword.
+        let pass_kw_pos = self.tok.span;
+        self.advance();
+
+        // Now, we need to check for the end.
+        if !self.parse_py_stmt_end() {
+            self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+            return Err(true);
+        }
+
+        // Create the AST node now.
+        self.abstract_syntax_tree
+            .push(ASTNode::new(ASTNodeType::PassStmt, pass_kw_pos, 0, 0));
+
+        Ok(self.last_ast_index())
+    }
+
+    /*
+       This method parses Python 'return' statements.
+    */
+    fn parse_py_return_stmt(&mut self) -> ReturnType {
+        let return_kw_span = self.tok.span;
+        // Consume 'return'
+        self.advance();
+
+        // Now, we may have an expression.
+        if self.is_py_expr_first() {
+            // Now, we need an expression.
+            let return_expr_start = self.tok.span;
+            let return_expr = match self.parse_py_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after 'return'.",
+                            return_expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Now, we need the end of the statement.
+            if !self.parse_py_stmt_end() {
+                self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+                return Err(true);
+            }
+
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::ReturnStmt,
+                return_kw_span + self.get_span(return_expr),
+                return_expr,
+                0,
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            // If we don't have an expression, we must return the return stmt node.
+            if !self.parse_py_stmt_end() {
+                self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+                return Err(true);
+            }
+
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::ReturnStmt,
+                return_kw_span,
+                0,
+                0,
+            ));
+
+            Ok(self.last_ast_index())
         }
     }
 }

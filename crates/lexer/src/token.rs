@@ -2,11 +2,11 @@
     Lexical Tokens
 */
 
-use std::fmt::Debug;
+use std::{clone::Clone, fmt::Debug};
 
 use src_manager::span::Span;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,

@@ -35,8 +35,17 @@ pub enum ASTNodeType {
     // The prefix operator expression also needs an operator.
     PrefixOpExpr(TokenKind),
 
+    // Assignment expressions are a special kind of binary expression.
+    AssignmentExpr,
+
     // Inside part of the conditional expression, carrying the If and Else cases.
     IfElseOptions,
 
     IfElseExpr,
+
+    /*
+       Statements
+    */
+    PassStmt,
+    ReturnStmt,
 }
