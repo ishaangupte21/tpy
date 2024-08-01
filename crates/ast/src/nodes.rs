@@ -43,9 +43,14 @@ pub enum ASTNodeType {
 
     IfElseExpr,
 
+    // Slice Expressions - these can be complex due to ranges.
+    SliceExpr,
+    SliceExprRange,
+
     /*
        Statements
     */
     PassStmt,
     ReturnStmt,
+    DelStmt,
 }

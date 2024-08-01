@@ -5,7 +5,7 @@ use compiler_driver::run_compiler;
 // Entry point
 fn main() {
     // First, we need to get the source file path from CLI args.
-    let src_file_path = match args().skip(1).next() {
+    let src_file_path = match args().nth(1) {
         Some(arg) => arg,
         None => {
             eprintln!("error: no source files given.");

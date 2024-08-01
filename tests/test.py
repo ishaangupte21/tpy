@@ -1,1 +1,1 @@
-return / 
+del foo, bar[baz: 

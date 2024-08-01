@@ -70,7 +70,7 @@ impl Parser<'_> {
 
     fn report_parse_error(&mut self, msg: &str, loc: Span) {
         self.has_seen_parse_error = true;
-        report_frontend_error(msg, loc, &self.lexer.metadata)
+        report_frontend_error(msg, loc, self.lexer.metadata)
     }
 
     pub fn parse_py_compilation_unit(&mut self) -> ReturnType {
@@ -185,11 +185,15 @@ impl Parser<'_> {
         let postfix_expr = match self.tok.kind {
             TokenKind::Dot => match self.parse_py_attr_ref_expr(expr, expr_start) {
                 Ok(expr) => expr,
-                Err(_) => return Err(false),
+                Err(has_err_been_reported) => return Err(has_err_been_reported),
             },
             TokenKind::LeftParen => match self.parse_py_call_expr(expr, expr_start) {
                 Ok(expr) => expr,
-                Err(_) => return Err(false),
+                Err(has_err_been_reported) => return Err(has_err_been_reported),
+            },
+            TokenKind::LeftSquare => match self.parse_py_slice_expr(expr, expr_start) {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => return Err(has_err_been_reported),
             },
 
             // For all other tokens, we do not need to parse anything further.
@@ -374,6 +378,118 @@ impl Parser<'_> {
             call_expr_args,
             0,
         ));
+
+        Ok(self.last_ast_index())
+    }
+
+    /*
+       This method parses python slicing expressions.
+    */
+    fn parse_py_slice_expr(&mut self, expr: usize, expr_start: Span) -> ReturnType {
+        // Consume the left square.
+        self.advance();
+
+        // We need at least one expression.
+        let first_slice_component_start = self.tok.span;
+        let first_slice_component = match self.parse_py_expr() {
+            Ok(expr) => expr,
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error(
+                        "expected expression within slicing brackets.",
+                        first_slice_component_start,
+                    );
+                }
+
+                return Err(true);
+            }
+        };
+
+        // Now, if the following token is a colon, we have a range slice.
+        // Otherwise, we must have the closing bracket.
+        if self.expect(TokenKind::Colon) {
+            // Consume the colon
+            self.advance();
+
+            // Now, we can have a right square bracket, or another expression.
+            if self.expect(TokenKind::RightSquare) {
+                self.abstract_syntax_tree.push(ASTNode::new(
+                    ASTNodeType::SliceExprRange,
+                    Span::empty(),
+                    first_slice_component,
+                    0,
+                ));
+
+                self.abstract_syntax_tree.push(ASTNode::new(
+                    ASTNodeType::SliceExpr,
+                    expr_start + self.tok.span,
+                    self.last_ast_index(),
+                    0,
+                ));
+
+                // Consume ']'
+                self.advance();
+
+                return Ok(self.last_ast_index());
+            }
+
+            // Otherwise, we need another expression.
+            let second_slice_component_start = self.tok.span;
+            let second_slice_component = match self.parse_py_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after ':' in slicing range.",
+                            second_slice_component_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            if !self.expect(TokenKind::RightSquare) {
+                self.report_parse_error("expected ']' to close slicing expression.", self.tok.span);
+                return Err(true);
+            }
+
+            // Create the nodes at the completion of the expression.
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::SliceExprRange,
+                Span::empty(),
+                first_slice_component,
+                second_slice_component,
+            ));
+
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::SliceExpr,
+                expr_start + self.tok.span,
+                self.last_ast_index(),
+                0,
+            ));
+
+            // Consume ']'
+            self.advance();
+
+            return Ok(self.last_ast_index());
+        }
+
+        if !self.expect(TokenKind::RightSquare) {
+            self.report_parse_error("expected ']' to close slicing expression.", self.tok.span);
+            return Err(true);
+        }
+
+        // Now, construct the AST node.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::SliceExpr,
+            expr_start + self.tok.span,
+            expr,
+            first_slice_component,
+        ));
+
+        // Consume the right square bracket.
+        self.advance();
 
         Ok(self.last_ast_index())
     }
@@ -1244,6 +1360,7 @@ impl Parser<'_> {
         let stmt = match self.tok.kind {
             TokenKind::KeywordPass => self.parse_py_pass_stmt(),
             TokenKind::KeywordReturn => self.parse_py_return_stmt(),
+            TokenKind::KeywordDel => self.parse_py_del_stmt(),
             _ => todo!(),
         };
 
@@ -1338,5 +1455,86 @@ impl Parser<'_> {
 
             Ok(self.last_ast_index())
         }
+    }
+
+    fn parse_py_del_stmt_target(&mut self) -> ReturnType {
+        // Since these can only be forms of a primary expression, we can skip the rest of expression parsing.
+        let target_start = self.tok.span;
+        let target = match self.parse_py_primary_expr() {
+            Ok(expr) => expr,
+            // This error will always have the value false.
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error("expected name or slice to be deleted.", target_start);
+                }
+                return Err(true);
+            }
+        };
+
+        // Now, we need to ensure that this target can actally be deleted.
+        if !matches!(
+            self.abstract_syntax_tree[target].node_type,
+            ASTNodeType::AttrRefExpr | ASTNodeType::Identifier | ASTNodeType::SliceExpr
+        ) {
+            self.report_parse_error(
+                "'del' operator can only be applied on names or slices.",
+                self.get_span(target),
+            );
+            return Err(true);
+        }
+
+        Ok(target)
+    }
+
+    /*
+       This method parses python 'del' statements.
+    */
+    fn parse_py_del_stmt(&mut self) -> ReturnType {
+        // Mark the start of the statement.
+        let del_kw_pos = self.tok.span;
+
+        self.advance();
+
+        // Now, we must have at least one 'target' to delete.
+        // Since this method always returns true for errors, we can propagate the error up the call stack.
+        let first_target = self.parse_py_del_stmt_target()?;
+        let mut stmt_span = del_kw_pos + self.get_span(first_target);
+
+        let mut targets = vec![first_target];
+
+        // Now, while we have a comma, we need to get more targets.
+        while self.expect(TokenKind::Comma) {
+            // Consume the comma and expect another target.
+            self.advance();
+
+            let next_target = self.parse_py_del_stmt_target()?;
+            stmt_span = stmt_span + self.get_span(next_target);
+
+            targets.push(next_target);
+        }
+
+        // Now, we need the end.
+        if !self.parse_py_stmt_end() {
+            self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+            return Err(true);
+        }
+
+        // Create the target list node.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::NodeList(targets),
+            Span::empty(),
+            0,
+            0,
+        ));
+
+        // Create the statement node.
+        self.abstract_syntax_tree.push(ASTNode::new(
+            ASTNodeType::DelStmt,
+            stmt_span,
+            self.last_ast_index(),
+            0,
+        ));
+
+        Ok(self.last_ast_index())
     }
 }
