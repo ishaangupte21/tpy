@@ -1,1 +1,1 @@
-del foo, bar[baz: 
+raise foo from bar

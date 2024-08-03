@@ -1361,6 +1361,7 @@ impl Parser<'_> {
             TokenKind::KeywordPass => self.parse_py_pass_stmt(),
             TokenKind::KeywordReturn => self.parse_py_return_stmt(),
             TokenKind::KeywordDel => self.parse_py_del_stmt(),
+            TokenKind::KeywordRaise => self.parse_py_raise_stmt(),
             _ => todo!(),
         };
 
@@ -1536,5 +1537,83 @@ impl Parser<'_> {
         ));
 
         Ok(self.last_ast_index())
+    }
+
+    /*
+       This method parses python 'raise' statments.
+    */
+    fn parse_py_raise_stmt(&mut self) -> ReturnType {
+        let raise_stmt_start = self.tok.span;
+
+        // Consume 'raise'
+        self.advance();
+
+        // Now, we need an expression for the exception.
+        let exception_start = self.tok.span;
+        let exception_expr = match self.parse_py_expr() {
+            Ok(expr) => expr,
+            Err(has_err_been_reported) => {
+                if !has_err_been_reported {
+                    self.report_parse_error(
+                        "expected expression as exception after 'raise'.",
+                        exception_start,
+                    );
+                }
+
+                return Err(true);
+            }
+        };
+
+        // Now, there may be a from component.
+        if self.expect(TokenKind::KeywordFrom) {
+            // Consume 'advance'.
+            self.advance();
+
+            // Now, we need another expression.
+            let from_expr_start = self.tok.span;
+            let from_expr = match self.parse_py_expr() {
+                Ok(expr) => expr,
+                Err(has_err_been_reported) => {
+                    if !has_err_been_reported {
+                        self.report_parse_error(
+                            "expected expression after 'from'.",
+                            from_expr_start,
+                        );
+                    }
+
+                    return Err(true);
+                }
+            };
+
+            // Check for the statement end and create the node.
+            if !self.parse_py_stmt_end() {
+                self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+                return Err(true);
+            }
+
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::RaiseStmt,
+                raise_stmt_start + self.get_span(from_expr),
+                exception_expr,
+                from_expr,
+            ));
+
+            Ok(self.last_ast_index())
+        } else {
+            // Otherwise, check for the statement and create the node.
+            if !self.parse_py_stmt_end() {
+                self.report_parse_error("expected newline or ';' at statement end.", self.tok.span);
+                return Err(true);
+            }
+
+            self.abstract_syntax_tree.push(ASTNode::new(
+                ASTNodeType::RaiseStmt,
+                raise_stmt_start + self.get_span(exception_expr),
+                exception_expr,
+                0,
+            ));
+
+            Ok(self.last_ast_index())
+        }
     }
 }
