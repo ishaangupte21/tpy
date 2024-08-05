@@ -54,4 +54,6 @@ pub enum ASTNodeType {
     ReturnStmt,
     DelStmt,
     RaiseStmt,
+    BreakStmt,
+    ContinueStmt,
 }
