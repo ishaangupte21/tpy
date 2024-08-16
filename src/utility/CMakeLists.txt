@@ -1,0 +1,1 @@
+add_library(tpy_utility ArenaAllocator.cpp MemoryBuffer.cpp Unicode.cpp)
