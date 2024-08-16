@@ -36,10 +36,24 @@ TEST_CASE("Source Location is being tested", "[src_location]") {
         REQUIRE(src_loc.col == 5);
     }
 
+    SECTION("Source locations with a UTF-8 BOM") {
+        auto &src_file =
+            src_mgr.open_py_src_file("./tests/source_location/utf8_bom.py");
+
+        auto src_loc = src_file.get_loc_from_pos(3);
+        REQUIRE(src_loc.line == 1);
+        REQUIRE(src_loc.col == 1);
+
+        auto src_loc_2 = src_file.get_loc_from_pos(25);
+        REQUIRE(src_loc_2.line == 2);
+        REQUIRE(src_loc_2.col == 1);
+    }
+
     SECTION("Source Locations without local file") {
         src_mgr.open_py_src_file("./tests/source_location/one_line.py");
         src_mgr.open_py_src_file("./tests/source_location/multiple_lines.py");
         src_mgr.open_py_src_file("./tests/source_location/unicode.py");
+        src_mgr.open_py_src_file("./tests/source_location/utf8_bom.py");
 
         auto src_loc_1 = src_mgr.get_loc_from_pos(20);
         REQUIRE(src_loc_1.line == 1);
@@ -56,5 +70,9 @@ TEST_CASE("Source Location is being tested", "[src_location]") {
         auto src_loc_4 = src_mgr.get_loc_from_pos(34);
         REQUIRE(src_loc_4.line == 2);
         REQUIRE(src_loc_4.col == 5);
+
+        auto src_loc_5 = src_mgr.get_loc_from_pos(56);
+        REQUIRE(src_loc_5.line == 1);
+        REQUIRE(src_loc_5.col == 3);
     }
 }

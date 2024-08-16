@@ -49,14 +49,18 @@ auto SourceManager::analyze_py_src_file(
     // The idea here is to iterate over the entire source file, looking for
     // newline characters so that we can put them in the linemap.
 
-    auto ptr = mem_buffer->str();
+    // We cannot use the str_start pointer here because that will consume the
+    // UTF-8 BOM if there is one. Instead, we will use the start pointer and
+    // cast it to type char.
+    auto file_start = reinterpret_cast<char *>(mem_buffer->data());
+    auto ptr = file_start;
     auto end = mem_buffer->char_end();
 
     std::vector<NewLineChar> newline_chars;
 
     while (ptr < end) {
         if (*ptr == '\n') {
-            newline_chars.emplace_back(ptr - mem_buffer->str(), 1);
+            newline_chars.emplace_back(ptr - file_start, 1);
             ++ptr;
             continue;
         }
@@ -65,10 +69,10 @@ auto SourceManager::analyze_py_src_file(
         // newline. That must be handled as well.
         if (*ptr == '\r') {
             if (ptr[1] == '\n') {
-                newline_chars.emplace_back(ptr - mem_buffer->str(), 2);
+                newline_chars.emplace_back(ptr - file_start, 2);
                 ptr += 2;
             } else {
-                newline_chars.emplace_back(ptr - mem_buffer->str(), 1);
+                newline_chars.emplace_back(ptr - file_start, 1);
                 ++ptr;
             }
 

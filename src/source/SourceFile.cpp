@@ -68,7 +68,7 @@ auto SourceFile::get_col_no_from_pos(size_t pos, size_t line_no) -> size_t {
     // character.
     uint8_t *line_start;
     if (line_no == 1) {
-        line_start = reinterpret_cast<uint8_t *>(buffer->data());
+        line_start = reinterpret_cast<uint8_t *>(buffer->str());
     } else {
         auto &preceding_newline_char = line_map[line_no - 2];
         line_start = reinterpret_cast<uint8_t *>(buffer->data()) +
