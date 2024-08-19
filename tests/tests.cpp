@@ -3,7 +3,10 @@
 */
 #define CATCH_CONFIG_MAIN
 
+#include <vector>
+
 #include "catch2/catch_test_macros.hpp"
+#include "tpy/parse/Lexer.h"
 #include "tpy/source/SourceManager.h"
 
 TEST_CASE("Source Location is being tested", "[src_location]") {
@@ -74,5 +77,54 @@ TEST_CASE("Source Location is being tested", "[src_location]") {
         auto src_loc_5 = src_mgr.get_loc_from_pos(56);
         REQUIRE(src_loc_5.line == 1);
         REQUIRE(src_loc_5.col == 3);
+    }
+}
+
+TEST_CASE("Lexer is being tested", "[lexer]") {
+    using tpy::Parse::TokenKind;
+    tpy::Source::SourceManager src_mgr;
+
+    SECTION("Basic delimiter tokens") {
+        auto &src_file =
+            src_mgr.open_py_src_file("./tests/lexer/delimiter_tokens.py");
+
+        tpy::Parse::Lexer lexer{src_file};
+
+        auto tok = tpy::Parse::Token::dummy();
+        std::vector<TokenKind> tokens;
+
+        lexer.lex_next_tok(tok);
+        while (tok.kind != TokenKind::End) {
+            tokens.emplace_back(tok.kind);
+            lexer.lex_next_tok(tok);
+        }
+
+        REQUIRE(tokens ==
+                std::vector<TokenKind>{TokenKind::Plus, TokenKind::PlusEquals,
+                                       TokenKind::MinusEquals, TokenKind::Colon,
+                                       TokenKind::ExclamationEquals,
+                                       TokenKind::ErrorToken,
+                                       TokenKind::Newline, TokenKind::LessLess,
+                                       TokenKind::GreaterGreaterEquals});
+    }
+
+    SECTION("Literal tokens") {
+        auto &src_file =
+            src_mgr.open_py_src_file("./tests/lexer/literal_tokens.py");
+
+        tpy::Parse::Lexer lexer{src_file};
+
+        auto tok = tpy::Parse::Token::dummy();
+        std::vector<TokenKind> tokens;
+
+        lexer.lex_next_tok(tok);
+        while (tok.kind != TokenKind::End) {
+            tokens.emplace_back(tok.kind);
+            lexer.lex_next_tok(tok);
+        }
+
+        REQUIRE(tokens == std::vector<TokenKind>{
+                              TokenKind::IntLiteral, TokenKind::IntLiteral,
+                              TokenKind::IntLiteral, TokenKind::IntLiteral});
     }
 }

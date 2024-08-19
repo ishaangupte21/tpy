@@ -76,8 +76,7 @@ auto SourceFile::get_col_no_from_pos(size_t pos, size_t line_no) -> size_t {
     }
 
     auto *pos_start = reinterpret_cast<uint8_t *>(buffer->data()) + pos;
-    auto *hard_end =
-        reinterpret_cast<uint8_t *>(buffer->data() + buffer->get_size());
+    auto *hard_end = reinterpret_cast<uint8_t *>(buffer->abs_end());
 
     // Now, we need to iterate over the buffer, looking for any unicode
     // codepoints.

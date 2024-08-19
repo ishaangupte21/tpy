@@ -1,2 +1,4 @@
 add_subdirectory(utility)
 add_subdirectory(source)
+add_subdirectory(parse)
+add_subdirectory(compiler)

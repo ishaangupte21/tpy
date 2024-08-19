@@ -1,0 +1,1 @@
+add_library(tpy_compiler FrontendErrorHandler.cpp)

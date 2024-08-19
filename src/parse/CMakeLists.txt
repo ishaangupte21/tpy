@@ -1,0 +1,1 @@
+add_library(tpy_parse Token.cpp Lexer.cpp)

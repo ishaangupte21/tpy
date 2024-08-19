@@ -22,12 +22,17 @@ class MemoryBuffer {
     // This is the size of the buffer.
     size_t size;
 
+    // This is the length of the contents. Usually, it will be 1 less than the
+    // buffer size.
+    size_t contents_length;
+
     // We need to know if the buffer is mapped or allocated using malloc.
     bool is_mapped;
 
   public:
     MemoryBuffer(std::byte *buffer, size_t size, bool is_mapped)
-        : buffer{buffer}, size{size}, is_mapped{is_mapped} {
+        : buffer{buffer}, size{size}, contents_length{size - 1},
+          is_mapped{is_mapped} {
         // When we construct this object, we must check for the UTF-8 BOM and
         // set the str_start pointer accordingly.
         auto unsigned_buffer = reinterpret_cast<uint8_t *>(buffer);
@@ -54,11 +59,13 @@ class MemoryBuffer {
 
     auto str() const -> char * { return str_start; }
 
-    auto get_size() const -> size_t { return size - 1; }
+    auto get_size() const -> size_t { return contents_length; }
 
     auto buffer_size() const -> size_t { return size; }
 
-    auto end() const -> std::byte * { return data() + size; }
+    auto end() const -> std::byte * { return data() + contents_length; }
+
+    auto abs_end() const -> std::byte * { return data() + size; }
 
     auto char_end() const -> char * { return str() + size; }
 

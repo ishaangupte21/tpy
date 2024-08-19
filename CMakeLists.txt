@@ -8,10 +8,12 @@ add_subdirectory(tools)
 
 target_include_directories(tpy_utility PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
 target_include_directories(tpy_source PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
+target_include_directories(tpy_parse PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
+target_include_directories(tpy_compiler PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
 
 target_include_directories(tpy PUBLIC "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
 
-target_link_libraries(tpy PUBLIC tpy_utility tpy_source)
+target_link_libraries(tpy PUBLIC tpy_utility tpy_source tpy_parse)
 
 
 # Set up the testing rig with catch 2.
@@ -28,4 +30,4 @@ FetchContent_MakeAvailable(Catch2)
 add_subdirectory(tests)
 
 target_include_directories(tests PRIVATE "${CMAKE_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
-target_link_libraries(tests PRIVATE Catch2::Catch2WithMain tpy_utility tpy_source)
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain tpy_utility tpy_source tpy_parse tpy_compiler)
