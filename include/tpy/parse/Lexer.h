@@ -66,7 +66,12 @@ class Lexer {
 
     auto consume_horizontal_whitespace() -> int;
 
-    auto lex_decimal_integer(Token &tok, char *start) -> void;
+    auto lex_decimal_integer_literal(Token &tok, char *start) -> void;
+
+    auto lex_floating_point_literal(Token &tok, char *start) -> void;
+
+    auto lex_floating_point_literal_exponent_part(Token &tok,
+                                                  char *start) -> void;
 
   public:
     explicit Lexer(Source::SourceFile &src_file) : src_file{src_file} {

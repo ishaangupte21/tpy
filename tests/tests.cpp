@@ -125,6 +125,10 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
 
         REQUIRE(tokens == std::vector<TokenKind>{
                               TokenKind::IntLiteral, TokenKind::IntLiteral,
-                              TokenKind::IntLiteral, TokenKind::IntLiteral});
+                              TokenKind::IntLiteral, TokenKind::IntLiteral,
+                              TokenKind::Newline, TokenKind::FloatLiteral,
+                              TokenKind::FloatLiteral, TokenKind::FloatLiteral,
+                              TokenKind::FloatLiteral,
+                              TokenKind::FloatLiteral});
     }
 }

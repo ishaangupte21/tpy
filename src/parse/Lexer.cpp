@@ -355,7 +355,7 @@ lexer_start:
     case '7':
     case '8':
     case '9': {
-        lex_decimal_integer(tok, tok_start);
+        lex_decimal_integer_literal(tok, tok_start);
         return;
     }
     }
@@ -391,7 +391,7 @@ auto Lexer::consume_horizontal_whitespace() -> int {
     }
 }
 
-auto Lexer::lex_decimal_integer(Token &tok, char *start) -> void {
+auto Lexer::lex_decimal_integer_literal(Token &tok, char *start) -> void {
     // We know that the first character is a digit, so we can consume it.
     ++ptr;
 
@@ -435,10 +435,172 @@ auto Lexer::lex_decimal_integer(Token &tok, char *start) -> void {
             continue;
         }
 
+        // If we encounter a '.', we know that this literal is a floating point
+        // literal.
+        case '.': {
+            lex_floating_point_literal(tok, start);
+            return;
+        }
+
+        // Also, we can go straight from the integers into the exponent part of
+        // the floating point literal.
+        case 'e':
+        case 'E': {
+            lex_floating_point_literal_exponent_part(tok, start);
+            return;
+        }
+
         // If we encounter any other characters, we know that we have
         // reached the end of the literal.
         default: {
             create_token(tok, TokenKind::IntLiteral, start, ptr - start);
+            return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_floating_point_literal(Token &tok, char *start) -> void {
+    // First, we need to consume the floating point.
+    ++ptr;
+
+    // The first character after a floating point must always be a digit.
+    if (!isdigit(*ptr)) {
+        report_error(ptr, 1, "a floating point must be followed by a digit.");
+
+        // We need to return the literal upto what we had before the invalid
+        // character.
+        create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+        return;
+    }
+
+    // Consume the first digit.
+    ++ptr;
+
+    // Now, similar to the integer literals, we can expect digits and separators
+    // to form the fraction part of the literal.
+    while (true) {
+        switch (*ptr) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+            ++ptr;
+            continue;
+        }
+
+        // An underscore represents a numeric separator. All numeric separators
+        // must be followed by a valid digit. If there isn't a valid digit, we
+        // can return the token upto the point we have matched digits, and
+        // consume the separator.
+        case '_': {
+            if (!isdigit(ptr[1])) {
+                report_error(
+                    ptr, 1,
+                    "a numeric separator must be followed by a valid digit.");
+
+                create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+
+                // Consume the separator.
+                ++ptr;
+                return;
+            }
+
+            // Otherwise, if we have a digit, we can consume both the separator
+            // and the digit.
+            ptr += 2;
+            continue;
+        }
+
+        // Floating point literals can also have exponent parts which are
+        // triggered by 'e' or 'E'.
+        case 'e':
+        case 'E': {
+            lex_floating_point_literal_exponent_part(tok, start);
+            return;
+        }
+
+        // For all other characters, return the floating point literal token.
+        default: {
+            create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+            return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_floating_point_literal_exponent_part(Token &tok,
+                                                     char *start) -> void {
+    // First, we must consume the exponent delimiter.
+    ++ptr;
+
+    // Now, the exponent delimiter can be followed by a sign.
+    if (*ptr == '+' || *ptr == '-') {
+        ++ptr;
+    }
+
+    // Now, we we must have a digit followed by digits and separators.
+    if (!isdigit(*ptr)) {
+        report_error(ptr, 1, "a floating point must be followed by a digit.");
+
+        // We need to return the literal upto what we had before the invalid
+        // character.
+        create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+        return;
+    }
+
+    // Consume the first digit.
+    ++ptr;
+
+    while (true) {
+        switch (*ptr) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+            ++ptr;
+            continue;
+        }
+
+        // An underscore represents a numeric separator. All numeric separators
+        // must be followed by a valid digit. If there isn't a valid digit, we
+        // can return the token upto the point we have matched digits, and
+        // consume the separator.
+        case '_': {
+            if (!isdigit(ptr[1])) {
+                report_error(
+                    ptr, 1,
+                    "a numeric separator must be followed by a valid digit.");
+
+                create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+
+                // Consume the separator.
+                ++ptr;
+                return;
+            }
+
+            // Otherwise, if we have a digit, we can consume both the separator
+            // and the digit.
+            ptr += 2;
+            continue;
+        }
+
+        // At the end of the exponent digits, we must finally return the
+        // literal.
+        default: {
+            create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
             return;
         }
         }
