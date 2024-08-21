@@ -34,7 +34,7 @@ auto SourceFile::get_line_no_from_pos(size_t pos) -> size_t {
     }
 
     // Otherwise, we need to find the first new line character ahead of the
-    // desired position. We will use an upper bound form of the binary search
+    // desired position. We will use an lower bound form of the binary search
     // for this.
     int low = 0, high = line_map.size() - 1;
     int result = -1;
@@ -42,11 +42,11 @@ auto SourceFile::get_line_no_from_pos(size_t pos) -> size_t {
     while (low <= high) {
         auto mid = low + (high - low) / 2;
 
-        if (line_map[mid].pos <= pos) {
-            low = mid + 1;
-        } else {
+        if (line_map[mid].pos >= pos) {
             result = mid;
             high = mid - 1;
+        } else {
+            low = mid + 1;
         }
     }
 

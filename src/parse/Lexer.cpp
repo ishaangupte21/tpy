@@ -358,6 +358,51 @@ lexer_start:
         lex_decimal_integer_literal(tok, tok_start);
         return;
     }
+
+    // A series of literals can begin with '0'. If the '0' digit is followed
+    // by a 'b', we have a binary literal. If it is followed by an 'x', we
+    // have a hex literal. If it is followed by a 'o', we have an octal
+    // literal. If it is followed by a '.' or 'e', we have a floating point
+    // literal. Otherwise, it is simply an integer literal of 0.
+    case '0': {
+        ++ptr;
+
+        switch (*ptr) {
+        case '.': {
+            lex_floating_point_literal(tok, tok_start);
+            return;
+        }
+
+        case 'e':
+        case 'E': {
+            lex_floating_point_literal_exponent_part(tok, tok_start);
+            return;
+        }
+
+        case 'x':
+        case 'X': {
+            lex_hex_integer_literal(tok, tok_start);
+            return;
+        }
+
+        case 'o':
+        case 'O': {
+            lex_octal_integer_literal(tok, tok_start);
+            return;
+        }
+
+        case 'b':
+        case 'B': {
+            lex_binary_integer_literal(tok, tok_start);
+            return;
+        }
+
+        default: {
+            create_token(tok, TokenKind::IntLiteral, tok_start, 1);
+            return;
+        }
+        }
+    }
     }
 }
 
@@ -419,7 +464,7 @@ auto Lexer::lex_decimal_integer_literal(Token &tok, char *start) -> void {
         case '_': {
             if (!isdigit(ptr[1])) {
                 report_error(
-                    ptr, 1,
+                    ptr + 1, 1,
                     "a numeric separator must be followed by a valid digit.");
 
                 create_token(tok, TokenKind::IntLiteral, start, ptr - start);
@@ -502,7 +547,7 @@ auto Lexer::lex_floating_point_literal(Token &tok, char *start) -> void {
         case '_': {
             if (!isdigit(ptr[1])) {
                 report_error(
-                    ptr, 1,
+                    ptr + 1, 1,
                     "a numeric separator must be followed by a valid digit.");
 
                 create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
@@ -581,7 +626,7 @@ auto Lexer::lex_floating_point_literal_exponent_part(Token &tok,
         case '_': {
             if (!isdigit(ptr[1])) {
                 report_error(
-                    ptr, 1,
+                    ptr + 1, 1,
                     "a numeric separator must be followed by a valid digit.");
 
                 create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
@@ -601,6 +646,268 @@ auto Lexer::lex_floating_point_literal_exponent_part(Token &tok,
         // literal.
         default: {
             create_token(tok, TokenKind::FloatLiteral, start, ptr - start);
+            return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_hex_integer_literal(Token &tok, char *start) -> void {
+    // First, we need to consume the 'X' or 'x' delimiter that got here.
+    ++ptr;
+
+    // Now, we must have a hex digit or a separator.
+    if (isxdigit(*ptr)) {
+        ++ptr;
+    } else if (*ptr == '_') {
+        // If we have a separator, it must be followed by a valid hex digit.
+        if (!isxdigit(ptr[1])) {
+            report_error(
+                ptr + 1, 1,
+                "a numeric separator must be followed by a valid hex digit.");
+
+            // Return the token.
+            // We will use an error token because we are not sure what the user
+            // has intended.
+            create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+
+            // Consume the separator.
+            ++ptr;
+
+            return;
+        }
+
+        // Otherwise, we can consume both the separator and the digit.
+        ptr += 2;
+    } else {
+        // If we do not have either a hex digit or a separator, we must report
+        // an error.
+        report_error(ptr, 1, "expected hex digit after '0x'.");
+
+        create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+        return;
+    }
+
+    // Now, we can consume digits and separators while they are present.
+    while (true) {
+        switch (*ptr) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F': {
+            ++ptr;
+            continue;
+        }
+
+        // An underscore represents a numeric separator. All numeric separators
+        // must be followed by a valid digit. If there isn't a valid digit, we
+        // can return the token upto the point we have matched digits, and
+        // consume the separator.
+        case '_': {
+            if (!isxdigit(ptr[1])) {
+                report_error(ptr + 1, 1,
+                             "a numeric separator must be followed by a valid "
+                             "hex digit.");
+
+                create_token(tok, TokenKind::HexIntLiteral, start, ptr - start);
+
+                // Consume the separator.
+                ++ptr;
+                return;
+            }
+
+            // Otherwise, if we have a digit, we can consume both the separator
+            // and the digit.
+            ptr += 2;
+            continue;
+        }
+
+        // At the end of the exponent digits, we must finally return the
+        // literal.
+        default: {
+            create_token(tok, TokenKind::HexIntLiteral, start, ptr - start);
+            return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_octal_integer_literal(Token &tok, char *start) -> void {
+    // First, we need to consume the 'o' or 'O' delimiter that got here.
+    ++ptr;
+
+    // Now, we must have an octal digit or a separator.
+    if (is_octal_digit(*ptr)) {
+        ++ptr;
+    } else if (*ptr == '_') {
+        // If we have a separator, it must be followed by a valid octal digit.
+        if (!is_octal_digit(ptr[1])) {
+            report_error(
+                ptr + 1, 1,
+                "a numeric separator must be followed by a valid octal digit.");
+
+            // Return the token.
+            // We will use an error token because we are not sure what the user
+            // has intended.
+            create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+
+            // Consume the separator.
+            ++ptr;
+
+            return;
+        }
+
+        // Otherwise, we can consume both the separator and the digit.
+        ptr += 2;
+    } else {
+        // If we do not have either an octal digit or a separator, we must
+        // report an error.
+        report_error(ptr, 1, "expected octal digit after '0o'.");
+
+        create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+        return;
+    }
+
+    // Now, we can consume digits and separators while they are present.
+    while (true) {
+        switch (*ptr) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7': {
+            ++ptr;
+            continue;
+        }
+
+        // An underscore represents a numeric separator. All numeric separators
+        // must be followed by a valid digit. If there isn't a valid digit, we
+        // can return the token upto the point we have matched digits, and
+        // consume the separator.
+        case '_': {
+            if (!is_octal_digit(ptr[1])) {
+                report_error(ptr + 1, 1,
+                             "a numeric separator must be followed by a valid "
+                             "octal digit.");
+
+                create_token(tok, TokenKind::OctalIntLiteral, start,
+                             ptr - start);
+
+                // Consume the separator.
+                ++ptr;
+                return;
+            }
+
+            // Otherwise, if we have a digit, we can consume both the separator
+            // and the digit.
+            ptr += 2;
+            continue;
+        }
+
+        // At the end of the exponent digits, we must finally return the
+        // literal.
+        default: {
+            create_token(tok, TokenKind::OctalIntLiteral, start, ptr - start);
+            return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_binary_integer_literal(Token &tok, char *start) -> void {
+    // First, we need to consume the 'b' or 'B' delimiter that got here.
+    ++ptr;
+
+    // Now, we must have a binary digit or a separator.
+    if (is_binary_digit(*ptr)) {
+        ++ptr;
+    } else if (*ptr == '_') {
+        // If we have a separator, it must be followed by a valid binary digit.
+        if (!is_binary_digit(ptr[1])) {
+            report_error(ptr + 1, 1,
+                         "a numeric separator must be followed by a valid "
+                         "binary digit.");
+
+            // Return the token.
+            // We will use an error token because we are not sure what the user
+            // has intended.
+            create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+
+            // Consume the separator.
+            ++ptr;
+
+            return;
+        }
+
+        // Otherwise, we can consume both the separator and the digit.
+        ptr += 2;
+    } else {
+        // If we do not have either a binary digit or a separator, we must
+        // report an error.
+        report_error(ptr, 1, "expected binary digit after '0b'.");
+
+        create_token(tok, TokenKind::ErrorToken, start, ptr - start);
+        return;
+    }
+
+    // Now, we can consume digits and separators while they are present.
+    while (true) {
+        switch (*ptr) {
+        case '0':
+        case '1': {
+            ++ptr;
+            continue;
+        }
+
+        // An underscore represents a numeric separator. All numeric separators
+        // must be followed by a valid digit. If there isn't a valid digit, we
+        // can return the token upto the point we have matched digits, and
+        // consume the separator.
+        case '_': {
+            if (!is_binary_digit(ptr[1])) {
+                report_error(ptr + 1, 1,
+                             "a numeric separator must be followed by a valid "
+                             "binary digit.");
+
+                create_token(tok, TokenKind::BinaryIntLiteral, start,
+                             ptr - start);
+
+                // Consume the separator.
+                ++ptr;
+                return;
+            }
+
+            // Otherwise, if we have a digit, we can consume both the separator
+            // and the digit.
+            ptr += 2;
+            continue;
+        }
+
+        // At the end of the exponent digits, we must finally return the
+        // literal.
+        default: {
+            create_token(tok, TokenKind::BinaryIntLiteral, start, ptr - start);
             return;
         }
         }

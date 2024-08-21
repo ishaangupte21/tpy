@@ -128,7 +128,9 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
                               TokenKind::IntLiteral, TokenKind::IntLiteral,
                               TokenKind::Newline, TokenKind::FloatLiteral,
                               TokenKind::FloatLiteral, TokenKind::FloatLiteral,
-                              TokenKind::FloatLiteral,
-                              TokenKind::FloatLiteral});
+                              TokenKind::FloatLiteral, TokenKind::FloatLiteral,
+                              TokenKind::Newline, TokenKind::HexIntLiteral,
+                              TokenKind::OctalIntLiteral,
+                              TokenKind::BinaryIntLiteral});
     }
 }

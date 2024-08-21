@@ -49,6 +49,10 @@ class Lexer {
        routine.
     */
 
+    static auto is_octal_digit(char c) -> bool { return c >= '0' && c <= '7'; }
+
+    static auto is_binary_digit(char c) -> bool { return c == '0' || c == '1'; }
+
     auto create_token(Token &tok, TokenKind kind, char *start, size_t len,
                       bool is_newline_tok = false) -> void {
         // First, we need to compute the local start position by subtracting the
@@ -72,6 +76,12 @@ class Lexer {
 
     auto lex_floating_point_literal_exponent_part(Token &tok,
                                                   char *start) -> void;
+
+    auto lex_hex_integer_literal(Token &tok, char *start) -> void;
+
+    auto lex_octal_integer_literal(Token &tok, char *start) -> void;
+
+    auto lex_binary_integer_literal(Token &tok, char *start) -> void;
 
   public:
     explicit Lexer(Source::SourceFile &src_file) : src_file{src_file} {
