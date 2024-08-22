@@ -83,6 +83,10 @@ class Lexer {
 
     auto lex_binary_integer_literal(Token &tok, char *start) -> void;
 
+    auto lex_single_quote_string_literal(Token &tok, char *start) -> void;
+
+    auto lex_double_quote_string_literal(Token &tok, char *start) -> void;
+
   public:
     explicit Lexer(Source::SourceFile &src_file) : src_file{src_file} {
         ptr = src_file.start();

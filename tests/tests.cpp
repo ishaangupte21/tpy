@@ -123,14 +123,17 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
             lexer.lex_next_tok(tok);
         }
 
-        REQUIRE(tokens == std::vector<TokenKind>{
-                              TokenKind::IntLiteral, TokenKind::IntLiteral,
-                              TokenKind::IntLiteral, TokenKind::IntLiteral,
-                              TokenKind::Newline, TokenKind::FloatLiteral,
-                              TokenKind::FloatLiteral, TokenKind::FloatLiteral,
-                              TokenKind::FloatLiteral, TokenKind::FloatLiteral,
-                              TokenKind::Newline, TokenKind::HexIntLiteral,
-                              TokenKind::OctalIntLiteral,
-                              TokenKind::BinaryIntLiteral});
+        REQUIRE(tokens ==
+                std::vector<TokenKind>{
+                    TokenKind::IntLiteral, TokenKind::IntLiteral,
+                    TokenKind::IntLiteral, TokenKind::IntLiteral,
+                    TokenKind::Newline, TokenKind::FloatLiteral,
+                    TokenKind::FloatLiteral, TokenKind::FloatLiteral,
+                    TokenKind::FloatLiteral, TokenKind::FloatLiteral,
+                    TokenKind::Newline, TokenKind::HexIntLiteral,
+                    TokenKind::OctalIntLiteral, TokenKind::BinaryIntLiteral,
+                    TokenKind::Newline, TokenKind::StringLiteral,
+                    TokenKind::StringLiteral, TokenKind::StringLiteral,
+                    TokenKind::StringLiteral});
     }
 }

@@ -5,6 +5,7 @@
 
 #include "tpy/parse/Lexer.h"
 #include "tpy/compiler/FrontendErrorHandler.h"
+#include "tpy/utility/Unicode.h"
 
 namespace tpy::Parse {
 auto Lexer::report_error(char *start, size_t len, const char *msg) -> void {
@@ -402,6 +403,16 @@ lexer_start:
             return;
         }
         }
+    }
+
+    case '\'': {
+        lex_single_quote_string_literal(tok, tok_start);
+        return;
+    }
+
+    case '"': {
+        lex_double_quote_string_literal(tok, tok_start);
+        return;
     }
     }
 }
@@ -909,6 +920,166 @@ auto Lexer::lex_binary_integer_literal(Token &tok, char *start) -> void {
         default: {
             create_token(tok, TokenKind::BinaryIntLiteral, start, ptr - start);
             return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_single_quote_string_literal(Token &tok, char *start) -> void {
+    // Consume the starting single quote.
+    ++ptr;
+
+    // Now, we need to consume characters until we either hit the end of the
+    // string or encounter an EOF. Because these strings support escape
+    // characters, we need to check the character after a backslash. We will not
+    // process escapes here as that is expensive and can be left for after
+    // parsing.
+    while (true) {
+        switch (*ptr) {
+        case '\'': {
+            // This is the end of the string.
+            // Consume the closing single quote.
+            ++ptr;
+
+            create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+            return;
+        }
+        case '\0': {
+            // This is possibly the end of the file, and we need to check for
+            // that. If it is the end of the file, we must report an error as
+            // string literals must be terminated.
+            if (ptr == end_ptr) {
+                report_error(ptr, 1,
+                             "expected closing '\'' in string literal, but "
+                             "encountered file end instead.");
+
+                create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+                return;
+            }
+
+            // Otherwise, null characters are accepted, so we must consume it
+            // and keep going.
+            ++ptr;
+            continue;
+        }
+        case '\\': {
+            // If we encounter a backslash, it must be followed by a valid
+            // source character. Essentially, it cannot be followed by an end of
+            // file.
+            ++ptr;
+
+            if (*ptr == 0) {
+                report_error(
+                    ptr, 1,
+                    "expected character after '\\' in string literal, but "
+                    "encountered file end instead.");
+
+                create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+                return;
+            }
+
+            // Otherwise, we can accept either an ASCII character or a unicode
+            // codepoint here.
+            if (*ptr > 0) {
+                ++ptr;
+            } else {
+                Utility::Unicode::decode_utf8_sequence(
+                    reinterpret_cast<uint8_t **>(&ptr),
+                    reinterpret_cast<uint8_t *>(end_ptr));
+            }
+
+            continue;
+        }
+        default: {
+            // All other source characters are valid within a Python string.
+            if (*ptr > 0) {
+                ++ptr;
+            } else {
+                Utility::Unicode::decode_utf8_sequence(
+                    reinterpret_cast<uint8_t **>(&ptr),
+                    reinterpret_cast<uint8_t *>(end_ptr));
+            }
+            continue;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_double_quote_string_literal(Token &tok, char *start) -> void {
+    // Consume the starting double quote.
+    ++ptr;
+
+    // Now, we need to consume characters until we either hit the end of the
+    // string or encounter an EOF. Because these strings support escape
+    // characters, we need to check the character after a backslash. We will not
+    // process escapes here as that is expensive and can be left for after
+    // parsing.
+    while (true) {
+        switch (*ptr) {
+        case '"': {
+            // This is the end of the string.
+            // Consume the closing double quote.
+            ++ptr;
+
+            create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+            return;
+        }
+        case '\0': {
+            // This is possibly the end of the file, and we need to check for
+            // that. If it is the end of the file, we must report an error as
+            // string literals must be terminated.
+            if (ptr == end_ptr) {
+                report_error(ptr, 1,
+                             "expected closing '\"' in string literal, but "
+                             "encountered file end instead.");
+
+                create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+                return;
+            }
+
+            // Otherwise, null characters are accepted, so we must consume it
+            // and keep going.
+            ++ptr;
+            continue;
+        }
+        case '\\': {
+            // If we encounter a backslash, it must be followed by a valid
+            // source character. Essentially, it cannot be followed by an end of
+            // file.
+            ++ptr;
+
+            if (*ptr == 0) {
+                report_error(
+                    ptr, 1,
+                    "expected character after '\\' in string literal, but "
+                    "encountered file end instead.");
+
+                create_token(tok, TokenKind::StringLiteral, start, ptr - start);
+                return;
+            }
+
+            // Otherwise, we can accept either an ASCII character or a unicode
+            // codepoint here.
+            if (*ptr > 0) {
+                ++ptr;
+            } else {
+                Utility::Unicode::decode_utf8_sequence(
+                    reinterpret_cast<uint8_t **>(&ptr),
+                    reinterpret_cast<uint8_t *>(end_ptr));
+            }
+
+            continue;
+        }
+        default: {
+            // All other source characters are valid within a Python string.
+            if (*ptr > 0) {
+                ++ptr;
+            } else {
+                Utility::Unicode::decode_utf8_sequence(
+                    reinterpret_cast<uint8_t **>(&ptr),
+                    reinterpret_cast<uint8_t *>(end_ptr));
+            }
+            continue;
         }
         }
     }

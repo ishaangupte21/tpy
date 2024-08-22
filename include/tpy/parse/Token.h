@@ -64,12 +64,10 @@ namespace tpy::Parse {
     X(ExclamationEquals)                                                       \
     X(IntLiteral)                                                              \
     X(FloatLiteral)                                                            \
-    X(StringLiteral)                                                           \
     X(HexIntLiteral)                                                           \
     X(BinaryIntLiteral)                                                        \
     X(OctalIntLiteral)                                                         \
-    X(DoubleQuotedStringLiteral)                                               \
-    X(SingleQuotedStringLiteral)                                               \
+    X(StringLiteral)                                                           \
     X(KeywordFalse)                                                            \
     X(KeywordNone)                                                             \
     X(KeywordTrue)                                                             \
