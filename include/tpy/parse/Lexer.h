@@ -87,6 +87,8 @@ class Lexer {
 
     auto lex_double_quote_string_literal(Token &tok, char *start) -> void;
 
+    auto lex_keyword_or_identifier(Token &tok, char *start) -> void;
+
   public:
     explicit Lexer(Source::SourceFile &src_file) : src_file{src_file} {
         ptr = src_file.start();

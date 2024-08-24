@@ -1,0 +1,59 @@
+/* GPerf configuration file for keyword recognizer */
+%language=C++
+%compare-lengths
+%compare-strncmp
+%define lookup-function-name is_keyword
+%define class-name KeywordLookup
+%switch=1 
+
+%{
+    #include "Token.h"
+    #include <cstring>
+    namespace tpy::Parse {
+%}
+
+struct Keyword 
+{
+    const char *name;
+    TokenKind kind;
+};
+
+%%
+False, TokenKind::KeywordFalse
+None, TokenKind::KeywordNone
+True, TokenKind::KeywordTrue
+and, TokenKind::KeywordAnd
+as, TokenKind::KeywordAs
+assert, TokenKind::KeywordAssert
+async, TokenKind::KeywordAsync
+await, TokenKind::KeywordAwait
+break, TokenKind::KeywordBreak
+class, TokenKind::KeywordClass
+continue, TokenKind::KeywordContinue
+def, TokenKind::KeywordDef
+del, TokenKind::KeywordDel
+elif, TokenKind::KeywordElif
+else, TokenKind::KeywordElse
+except, TokenKind::KeywordExcept
+finally, TokenKind::KeywordFinally
+for, TokenKind::KeywordFor
+from, TokenKind::KeywordFrom
+global, TokenKind::KeywordGlobal
+if, TokenKind::KeywordIf
+import, TokenKind::KeywordImport
+in, TokenKind::KeywordIn
+is, TokenKind::KeywordIs
+labmda, TokenKind::KeywordLambda
+nonlocal, TokenKind::KeywordNonlocal
+not, TokenKind::KeywordNot
+or, TokenKind::KeywordOr
+pass, TokenKind::KeywordPass
+raise, TokenKind::KeywordRaise
+return, TokenKind::KeywordReturn
+try, TokenKind::KeywordTry
+while, TokenKind::KeywordWhile
+with, TokenKind::KeywordWith
+yield, TokenKind::KeywordYield
+%%
+
+}

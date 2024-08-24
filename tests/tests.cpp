@@ -136,4 +136,25 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
                     TokenKind::StringLiteral, TokenKind::StringLiteral,
                     TokenKind::StringLiteral});
     }
+
+    SECTION("Keywords and identifiers") {
+        auto &src_file =
+            src_mgr.open_py_src_file("./tests/lexer/keywords_identifiers.py");
+
+        tpy::Parse::Lexer lexer{src_file};
+
+        auto tok = tpy::Parse::Token::dummy();
+        std::vector<TokenKind> tokens;
+
+        lexer.lex_next_tok(tok);
+        while (tok.kind != TokenKind::End) {
+            tokens.emplace_back(tok.kind);
+            lexer.lex_next_tok(tok);
+        }
+
+        REQUIRE(tokens == std::vector<TokenKind>{
+                              TokenKind::Identifier, TokenKind::Identifier,
+                              TokenKind::Newline, TokenKind::KeywordTry,
+                              TokenKind::KeywordTrue, TokenKind::KeywordFalse});
+    }
 }

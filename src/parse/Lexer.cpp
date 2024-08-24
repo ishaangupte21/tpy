@@ -5,6 +5,7 @@
 
 #include "tpy/parse/Lexer.h"
 #include "tpy/compiler/FrontendErrorHandler.h"
+#include "tpy/parse/Keywords.h"
 #include "tpy/utility/Unicode.h"
 
 namespace tpy::Parse {
@@ -405,6 +406,8 @@ lexer_start:
         }
     }
 
+    // Python supports string literals that are enclosed in both a single and
+    // double quote.
     case '\'': {
         lex_single_quote_string_literal(tok, tok_start);
         return;
@@ -412,6 +415,64 @@ lexer_start:
 
     case '"': {
         lex_double_quote_string_literal(tok, tok_start);
+        return;
+    }
+
+    // Now, we can begin scanning identifiers.
+    case 'a':
+    case 'b':
+    case 'c':
+    case 'd':
+    case 'e':
+    case 'f':
+    case 'g':
+    case 'h':
+    case 'i':
+    case 'j':
+    case 'k':
+    case 'l':
+    case 'm':
+    case 'n':
+    case 'o':
+    case 'p':
+    case 'q':
+    case 'r':
+    case 's':
+    case 't':
+    case 'u':
+    case 'v':
+    case 'w':
+    case 'x':
+    case 'y':
+    case 'z':
+    case 'A':
+    case 'B':
+    case 'C':
+    case 'D':
+    case 'E':
+    case 'F':
+    case 'G':
+    case 'H':
+    case 'I':
+    case 'J':
+    case 'K':
+    case 'L':
+    case 'M':
+    case 'N':
+    case 'O':
+    case 'P':
+    case 'Q':
+    case 'R':
+    case 'S':
+    case 'T':
+    case 'U':
+    case 'V':
+    case 'W':
+    case 'X':
+    case 'Y':
+    case 'Z':
+    case '_': {
+        lex_keyword_or_identifier(tok, tok_start);
         return;
     }
     }
@@ -1080,6 +1141,124 @@ auto Lexer::lex_double_quote_string_literal(Token &tok, char *start) -> void {
                     reinterpret_cast<uint8_t *>(end_ptr));
             }
             continue;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_keyword_or_identifier(Token &tok, char *start) -> void {
+    // Python allows all unicode codepoints with the category xid_continue to
+    // follow the start character in an identifier. In order to speed up all
+    // keywords and common identifiers, we will check ASCII characters first.
+    while (true) {
+        switch (*ptr) {
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+        case 'g':
+        case 'h':
+        case 'i':
+        case 'j':
+        case 'k':
+        case 'l':
+        case 'm':
+        case 'n':
+        case 'o':
+        case 'p':
+        case 'q':
+        case 'r':
+        case 's':
+        case 't':
+        case 'u':
+        case 'v':
+        case 'w':
+        case 'x':
+        case 'y':
+        case 'z':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+        case 'G':
+        case 'H':
+        case 'I':
+        case 'J':
+        case 'K':
+        case 'L':
+        case 'M':
+        case 'N':
+        case 'O':
+        case 'P':
+        case 'Q':
+        case 'R':
+        case 'S':
+        case 'T':
+        case 'U':
+        case 'V':
+        case 'W':
+        case 'X':
+        case 'Y':
+        case 'Z':
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case '_': {
+            ++ptr;
+            continue;
+        }
+
+        default: {
+            // Here, we have two options. If we have an ascii character, we know
+            // that it is not part of the keyword/identifier and can stop there.
+            // Otherwise, we need to decode the utf-8 codepoint and check if it
+            // is in the xid_continue set.
+            if (*ptr < 0) {
+                // We need to store the start of this codepoint incase it is not
+                // part of the identifier.
+                char *last_cp_start = ptr;
+
+                auto cp = Utility::Unicode::decode_utf8_sequence(
+                    reinterpret_cast<uint8_t **>(&ptr),
+                    reinterpret_cast<uint8_t *>(end_ptr));
+
+                if (Utility::Unicode::is_xid_continue(cp)) {
+                    // If we have an XID_continue character, we must consume it
+                    // and keep going.
+                    continue;
+                }
+
+                // Otherwise, we need to backtrack on the input. We will then
+                // fall through as that is where we will handle the end of the
+                // identifier.
+                ptr = last_cp_start;
+            }
+
+            // Before we create a token, we must check if this token is a
+            // keyword.
+            size_t tok_len = ptr - start;
+            auto keyword_resp = KeywordLookup::is_keyword(start, tok_len);
+
+            // If the response is null, it means we have an identifier.
+            // Otherwise, we have a keyword.
+            if (keyword_resp) {
+                create_token(tok, keyword_resp->kind, start, tok_len);
+            } else {
+                create_token(tok, TokenKind::Identifier, start, tok_len);
+            }
+
+            return;
         }
         }
     }
