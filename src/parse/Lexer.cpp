@@ -472,8 +472,48 @@ lexer_start:
     case 'Y':
     case 'Z':
     case '_': {
+        // We need to consume the first character here because if there is a
+        // unicode codepoint, the pointer will already be advanced.
+        ++ptr;
         lex_keyword_or_identifier(tok, tok_start);
         return;
+    }
+
+    // Comments in Python begin with '#'. The lex_comment method will return
+    // false if an EOF was found and the token was created. It will return true
+    // if a newline was found as parsing newline characters needs to be
+    // deferred.
+    case '#': {
+        if (lex_comment(tok)) {
+            goto lexer_start;
+        }
+
+        return;
+    }
+
+    // For all other characters, there are two options. If we have an ASCII
+    // character, we definitely know that it is invalid. However, if we have
+    // a unicode codepoint, we need to check if it is part of XID_START.
+    default: {
+        if (*ptr < 0) {
+            auto cp = Utility::Unicode::decode_utf8_sequence(
+                reinterpret_cast<uint8_t **>(&ptr),
+                reinterpret_cast<uint8_t *>(end_ptr));
+
+            if (Utility::Unicode::is_xid_start(cp)) {
+                lex_keyword_or_identifier(tok, tok_start);
+                return;
+            }
+            // Fallthrough here to report an error.
+        } else {
+            // If we have an ASCII character, we need to consume it as if it
+            // never exists. For unicode codepoints, the pointer will already be
+            // advanced.
+            ++ptr;
+        }
+
+        report_error(tok_start, 1, "invalid character.");
+        goto lexer_start;
     }
     }
 }
@@ -1259,6 +1299,42 @@ auto Lexer::lex_keyword_or_identifier(Token &tok, char *start) -> void {
             }
 
             return;
+        }
+        }
+    }
+}
+
+auto Lexer::lex_comment(Token &tok) -> bool {
+    // Consume the '#'.
+    ++ptr;
+
+    // Now, we need to keep consuming characters until we find a newline or EOF.
+    while (true) {
+        switch (*ptr) {
+        // If we find a newline, we need to just return true and allow the
+        // lexer to scan it.
+        case '\r':
+        case '\n': {
+            return true;
+        }
+
+        // If we find a null character, we need to check if it is EOF. If it is
+        // EOF, we can create the token and return false. Otherwise, we just
+        // keep going.
+        case '\0': {
+            if (ptr == end_ptr) {
+                create_token(tok, TokenKind::End, ptr, 1);
+                return false;
+            }
+
+            ++ptr;
+            continue;
+        }
+
+        // For all other characters, we just keep going.
+        default: {
+            ++ptr;
+            continue;
         }
         }
     }
