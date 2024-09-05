@@ -1,1 +1,1 @@
-add_library(tpy_parse Token.cpp Lexer.cpp)
+add_library(tpy_parse Token.cpp Lexer.cpp Parser.cpp)

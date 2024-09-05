@@ -16,7 +16,7 @@
 #define READ_TYPE_FLAG (_O_BINARY)
 
 #else
-#include <sys/mmap.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 #define READ_TYPE_FLAG (O_RDONLY)
@@ -24,6 +24,22 @@
 #endif
 
 namespace tpy::Utility {
+/*
+    This destructor will unmap the buffer if it is backed by mapped memory.
+    Otherwise, it will simply deallocate.
+*/
+MemoryBuffer::~MemoryBuffer() {
+    // If the instance is backed by mapped memory, we must unmap it.
+    // Otherwise, it can be deleted.
+    if (is_mapped) {
+#ifndef _WIN32
+        munmap(reinterpret_cast<void *>(buffer), size);
+#endif
+    } else {
+        delete[] buffer;
+    }
+}
+
 /*
     This method will open the file into a buffer.
     If the file is larger than 16384 bytes, we will map the file into a buffer.
@@ -57,7 +73,7 @@ auto MemoryBuffer::create_buffer_from_file(char *file_path)
             mmap(nullptr, file_size + 1, PROT_READ, MAP_SHARED, fd, 0));
 
         if (buffer == MAP_FAILED) {
-            throw std::runtime_exception{strerror(errno)};
+            throw std::runtime_error{strerror(errno)};
         }
 
         buffer[file_size] = std::byte{0};

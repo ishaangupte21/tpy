@@ -69,17 +69,7 @@ class MemoryBuffer {
 
     auto char_end() const -> char * { return str() + size; }
 
-    ~MemoryBuffer() {
-        // If the instance is backed by mapped memory, we must unmap it.
-        // Otherwise, it can be deleted.
-        if (is_mapped) {
-#ifndef _WIN32
-            munmap(reinterpret_cast<void *>(buffer), size);
-#endif
-        } else {
-            delete[] buffer;
-        }
-    }
+    ~MemoryBuffer();
 };
 
 } // namespace tpy::Utility

@@ -7,6 +7,7 @@
 
 #include <forward_list>
 #include <memory>
+#include <new>
 
 namespace tpy::Utility {
 /*
@@ -44,9 +45,25 @@ class ArenaAllocator {
     ArenaAllocator() : ArenaAllocator(GET_DEFAULT_SLAB_SIZE()) {}
 
     /*
-        This method will instantiate the given object within the arena.
+        This method will instantiate the given object within the arena. This
+       needs to have the function body in the header file to resolve linker
+       issues that come with template instantiation. If it becomes an issue, we
+       can resort to explicit instantiation and move it back to the
+       'ArenaAllocator.cpp' file.
     */
-    template <class T, typename... Args> auto allocate(Args &&...args) -> T *;
+    template <class T, typename... Args> auto allocate(Args &&...args) -> T * {
+        // First, we need to obtain the memory.
+        // If the current slab doesn't have enough, we need to allocate another
+        // one.
+        if (end_of_current_slab - current_pos < sizeof(T)) {
+            create_new_slab();
+        }
+        auto mem = current_pos;
+        current_pos += sizeof(T);
+
+        // Now, we can instantiate the object at that memory location.
+        return new (mem) T(std::forward<Args>(args)...);
+    }
 };
 } // namespace tpy::Utility
 

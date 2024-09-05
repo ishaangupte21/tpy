@@ -1,2 +1,4 @@
 build
 .vscode
+.cache
+tree_result.txt

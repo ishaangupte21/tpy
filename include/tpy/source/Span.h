@@ -5,6 +5,8 @@
 #ifndef TPY_SOURCE_SPAN
 #define TPY_SOURCE_SPAN
 
+#include <cstddef>
+
 namespace tpy::Source {
 /*
     This object will contain both the local and absolute positions.
@@ -22,6 +24,13 @@ class Span {
     auto absolute_end() -> size_t { return absolute_pos + len; }
 
     static auto empty() -> Span { return Span{0, 0, 0}; }
+
+    // For constructing the AST, we need to be able to combine spans that
+    // represent regions.
+    auto operator+(const Span &rhs) -> Source::Span &{
+        len = (rhs.absolute_pos + len) - absolute_pos;
+        return *this;
+    }
 };
 } // namespace tpy::Source
 

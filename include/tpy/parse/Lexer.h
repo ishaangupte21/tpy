@@ -108,5 +108,8 @@ class Lexer {
     // This is the main lexer routine that will scan tokens from the Python
     // source.
     auto lex_next_tok(Token &tok) -> void;
+
+    // It is OK if parser instances access private members in the lexer class.
+    friend class Parser;
 };
 } // namespace tpy::Parse

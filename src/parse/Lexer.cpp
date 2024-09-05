@@ -144,10 +144,12 @@ lexer_start:
     case ',': {
         ++ptr;
         create_token(tok, TokenKind::Comma, tok_start, 1);
+        return;
     }
     case '~': {
         ++ptr;
         create_token(tok, TokenKind::Tilda, tok_start, 1);
+        return;
     }
     case '+': {
         if (ptr[1] == '=') {
