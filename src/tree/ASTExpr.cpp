@@ -315,4 +315,40 @@ auto ASTDictExprNode::pretty_print(FILE *result_file, int level) -> void {
     fputs("}\n", result_file);
 }
 
+auto ASTNameExprNode::pretty_print(FILE *result_file, int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTNameExprNode\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+    fprintf(result_file, "start: %llu\n", loc.local_pos);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+    fprintf(result_file, "end: %llu\n", loc.local_end());
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
 } // namespace tpy::Tree

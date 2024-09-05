@@ -70,6 +70,11 @@ auto Parser::parse_atom_and_primary_expr() -> ReturnType {
         advance();
         break;
     }
+    case TokenKind::Identifier: {
+        result = arena.allocate<Tree::ASTNameExprNode>(tok.span);
+        advance();
+        break;
+    }
     case TokenKind::LeftParen: {
         auto inner_expr = parse_paren_expr();
         // Since the parse_paren_expr method will report all errors, we don't

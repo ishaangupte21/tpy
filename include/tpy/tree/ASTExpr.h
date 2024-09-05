@@ -29,7 +29,7 @@ class ASTIntLiteralNode : public ASTNode {
 // input.
 class ASTFloatLiteralNode : public ASTNode {
   public:
-    ASTFloatLiteralNode(Source::Span loc) : ASTNode{loc} {}
+    explicit ASTFloatLiteralNode(Source::Span loc) : ASTNode{loc} {}
 
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
@@ -38,7 +38,7 @@ class ASTFloatLiteralNode : public ASTNode {
 // input.
 class ASTStringLiteralNode : public ASTNode {
   public:
-    ASTStringLiteralNode(Source::Span loc) : ASTNode{loc} {}
+    explicit ASTStringLiteralNode(Source::Span loc) : ASTNode{loc} {}
 
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
@@ -109,6 +109,15 @@ class ASTDictExprNode : public ASTNode {
         : ASTNode{loc}, contents{std::move(contents)} {}
 
     ASTDictExprNode(Source::Span loc) : ASTNode{loc} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+// This class defines the ASTNode that will hold expressions defined by
+// identifiers that act as names.
+class ASTNameExprNode : public ASTNode {
+  public:
+    explicit ASTNameExprNode(Source::Span loc) : ASTNode{loc} {}
 
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
