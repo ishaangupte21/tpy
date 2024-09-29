@@ -16,7 +16,7 @@ namespace tpy::Parse {
 class Lexer {
     // This is the source file object that contains all of the metadata for this
     // source file.
-    Source::SourceFile &src_file;
+    Source::SourceFile *src_file;
 
     // This is the pointer to the start of the lexical buffer. In the case of a
     // UTF-8 BOM, this pointer will be configured to skip the BOM.
@@ -61,7 +61,7 @@ class Lexer {
         auto local_pos = static_cast<size_t>(start - abs_buffer_start);
 
         tok.update(kind,
-                   Source::Span{local_pos, local_pos + src_file.offset, len});
+                   Source::Span{local_pos, local_pos + src_file->offset, len});
 
         was_last_tok_newline = is_newline_tok;
     }
@@ -92,10 +92,11 @@ class Lexer {
     auto lex_comment(Token &tok) -> bool;
 
   public:
-    explicit Lexer(Source::SourceFile &src_file) : src_file{src_file} {
-        ptr = src_file.start();
-        end_ptr = reinterpret_cast<char *>(src_file.buffer->end());
-        abs_buffer_start = reinterpret_cast<char *>(src_file.buffer->data());
+    explicit Lexer(Source::SourceFile * src_file)
+        : src_file{src_file} {
+        ptr = src_file->start();
+        end_ptr = reinterpret_cast<char *>(src_file->buffer->end());
+        abs_buffer_start = reinterpret_cast<char *>(src_file->buffer->data());
 
         // All Python source files begin with a 0 on the indentation stack.
         whitespace_stack.push(0);

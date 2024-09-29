@@ -13,16 +13,16 @@ namespace tpy::Compiler {
    the user with a good error message and an accurate source location.
 */
 auto FrontendErrorHandler::report_error_with_local_pos(
-    Source::SourceFile &src_file, size_t pos, size_t len,
+    Source::SourceFile *src_file, size_t pos, size_t len,
     const char *msg) -> void {
     // Tell the frontend that we have seen errors.
     has_seen_error = true;
 
     // First, we must get the source location of the desired position.
-    auto src_loc = src_file.get_loc_from_pos(pos);
+    auto src_loc = src_file->get_loc_from_pos(pos);
 
     fprintf(stderr, "error: %s\n --> %s at line %llu, col %llu\n", msg,
-            src_file.path.c_str(), src_loc.line, src_loc.col);
+            src_file->path.c_str(), src_loc.line, src_loc.col);
 
     putchar('\n');
 }

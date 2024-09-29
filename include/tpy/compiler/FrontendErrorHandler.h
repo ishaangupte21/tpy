@@ -18,9 +18,10 @@ class FrontendErrorHandler {
     static inline bool has_seen_error = false;
 
   public:
-    static auto report_error_with_local_pos(Source::SourceFile &src_file,
-                                            size_t pos, size_t len,
-                                            const char *msg) -> void;
+    static auto
+    report_error_with_local_pos(Source::SourceFile *src_file,
+                                size_t pos, size_t len,
+                                const char *msg) -> void;
 
     static auto error() -> bool { return has_seen_error; }
 };

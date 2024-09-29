@@ -4,8 +4,8 @@
 */
 
 #include "tpy/source/SourceManager.h"
+#include "tpy/source/SourceFile.h"
 #include "tpy/utility/MemoryBuffer.h"
-#include <optional>
 
 namespace tpy::Source {
 /*
@@ -13,7 +13,8 @@ namespace tpy::Source {
    by the SourceManager. It will compute the starting offset for this source
    file and get the memory buffer as well as the line map.
 */
-auto SourceManager::open_py_src_file(char *path) -> SourceFile & {
+auto SourceManager::open_py_src_file(char *path)
+    -> SourceFile * {
     // First, we need to get the source file as a Memory Buffer
     auto mem_buffer = Utility::MemoryBuffer::create_buffer_from_file(path);
 
@@ -27,12 +28,12 @@ auto SourceManager::open_py_src_file(char *path) -> SourceFile & {
         offset = 0;
     } else {
         auto &last_src_file = src_files.back();
-        offset = last_src_file.offset + last_src_file.size();
+        offset = last_src_file->offset + last_src_file->size();
     }
 
     // Append the source file to the vector.
-    src_files.emplace_back(path, offset, std::move(mem_buffer),
-                           std::move(line_map));
+    src_files.emplace_back(new SourceFile(
+        path, offset, std::move(mem_buffer), std::move(line_map)));
 
     // // Return the reference.
     return src_files.back();
@@ -100,7 +101,7 @@ auto SourceManager::get_loc_from_pos(size_t pos) -> SourceLocation {
         // Once we have the source file, we need to compute the local offset and
         // pass that to the source file's local method.
         auto &src_file = src_files[0];
-        return src_file.get_loc_from_pos(pos - src_file.offset);
+        return src_file->get_loc_from_pos(pos - src_file->offset);
     }
 
     int low = 0, high = src_files.size() - 1;
@@ -109,7 +110,7 @@ auto SourceManager::get_loc_from_pos(size_t pos) -> SourceLocation {
     while (low <= high) {
         auto mid = low + (high - low) / 2;
 
-        if (src_files[mid].offset <= pos) {
+        if (src_files[mid]->offset <= pos) {
             low = mid + 1;
         } else {
             result = mid;
@@ -121,6 +122,6 @@ auto SourceManager::get_loc_from_pos(size_t pos) -> SourceLocation {
     // source file. Otherwise, we must use the source file of result - 1.
     auto &src_file = result > -1 ? src_files[result - 1] : src_files.back();
 
-    return src_file.get_loc_from_pos(pos - src_file.offset);
+    return src_file->get_loc_from_pos(pos - src_file->offset);
 }
 } // namespace tpy::Source

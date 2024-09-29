@@ -122,6 +122,71 @@ class ASTNameExprNode : public ASTNode {
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
 
+// This class defines the ASTNode that will hold attribute reference expressions
+// of the form 'foo.bar'.
+class ASTAttrRefExprNode : public ASTNode {
+  public:
+    // These two members represent the two sides of the expression with the dot
+    // in between. With the form 'foo.bar', 'foo' is the lhs and 'bar' is the
+    // rhs.
+    ASTNode *lhs;
+    ASTNameExprNode *rhs;
+
+    ASTAttrRefExprNode(ASTNode *lhs, ASTNameExprNode *rhs, Source::Span loc)
+        : ASTNode{loc}, lhs{lhs}, rhs{rhs} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+// This class defines the ASTNode that will hold call expressions.
+class ASTCallExprNode : public ASTNode {
+  public:
+    // This member represents the expression that will be called.
+    ASTNode *callee;
+
+    // This member is a list of all of the arguments in the call expression.
+    std::vector<ASTNode *> args;
+
+    ASTCallExprNode(ASTNode *callee, std::vector<ASTNode *> args,
+                    Source::Span loc)
+        : ASTNode{loc}, callee{callee}, args{std::move(args)} {}
+
+    ASTCallExprNode(ASTNode *callee, Source::Span loc)
+        : ASTNode{loc}, callee{callee} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+class ASTIndexSliceExprNode : public ASTNode {
+  public:
+    // This member represents the expression that will be sliced.
+    ASTNode *slicee;
+
+    // This member represents the expression that will be evaluated to determine
+    // the index of slicing.
+    ASTNode *index_expr;
+
+    ASTIndexSliceExprNode(ASTNode *slicee, ASTNode *index_expr,
+                          Source::Span loc)
+        : ASTNode{loc}, slicee{slicee}, index_expr{index_expr} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+class ASTProperSliceExprNode : public ASTNode {
+  public:
+    ASTNode *slicee;
+
+    ASTNode *lower_bound, *upper_bound;
+
+    ASTProperSliceExprNode(ASTNode *slicee, ASTNode *lower_bound,
+                           ASTNode *upper_bound, Source::Span loc)
+        : ASTNode{loc}, slicee{slicee}, lower_bound{lower_bound},
+          upper_bound{upper_bound} {}
+    
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
 } // namespace tpy::Tree
 
 #endif

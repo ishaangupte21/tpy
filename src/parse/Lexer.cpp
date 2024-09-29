@@ -408,6 +408,30 @@ lexer_start:
         }
     }
 
+    // In order to handle the dot token, we must check for the next character
+    // being a digit, because we can have float literals start with a dot.
+    case '.': {
+        switch (ptr[1]) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+            return lex_floating_point_literal(tok, tok_start);
+        }
+        default: {
+            ++ptr;
+            create_token(tok, TokenKind::Dot, tok_start, 1);
+            return;
+        }
+        }
+    }
+
     // Python supports string literals that are enclosed in both a single and
     // double quote.
     case '\'': {

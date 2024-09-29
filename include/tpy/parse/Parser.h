@@ -3,8 +3,8 @@
    files.
 */
 
-#ifndef TPY_PARSE_PARSER_H
-#define TPY_PARSE_PARSER_H
+#ifndef TPY_parse_py_PARSER_H
+#define TPY_parse_py_PARSER_H
 
 #include "Lexer.h"
 #include "tpy/source/Span.h"
@@ -52,26 +52,34 @@ class Parser {
        Python syntax.
     */
 
-    auto parse_expr() -> ReturnType;
+    auto parse_py_expr() -> ReturnType;
 
-    auto parse_atom_and_primary_expr() -> ReturnType;
+    auto parse_py_atom_and_primary_expr() -> ReturnType;
 
-    auto parse_paren_expr() -> ReturnType;
+    auto parse_py_paren_expr() -> ReturnType;
 
-    auto parse_list_expr() -> ReturnType;
+    auto parse_py_list_expr() -> ReturnType;
 
-    auto parse_set_or_dict_expr() -> ReturnType;
+    auto parse_py_set_or_dict_expr() -> ReturnType;
 
-    auto parse_dict_expr(Tree::ASTNode *first_expr,
+    auto parse_py_dict_expr(Tree::ASTNode *first_expr,
                          Source::Span start) -> ReturnType;
+    
+    auto parse_py_attr_ref_expr(Tree::ASTNode *expr) -> ReturnType;
+
+    auto parse_py_call_expr(Tree::ASTNode *callee) -> ReturnType;
+
+    auto parse_py_slice_expr(Tree::ASTNode *slicee) -> ReturnType;
+
+    auto parse_py_proper_slice_expr(Tree::ASTNode *slicee, Tree::ASTNode *lower_bound) -> ReturnType;
 
   public:
     Parser(Lexer &lexer, Utility::ArenaAllocator &arena)
         : lexer{lexer}, arena{arena} {}
 
-    auto parse_compilation_unit() -> Tree::ASTNode * {
+    auto parse_py_compilation_unit() -> Tree::ASTNode * {
         advance();
-        return parse_expr().first;
+        return parse_py_expr().first;
     }
 };
 } // namespace tpy::Parse

@@ -19,41 +19,41 @@ TEST_CASE("Source Location is being tested on Windows", "[src_location]") {
     tpy::Source::SourceManager src_mgr;
 
     SECTION("Source locations for one line and no unicode") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/one_line.py");
 
-        auto src_loc = src_file.get_loc_from_pos(14);
+        auto src_loc = src_file->get_loc_from_pos(14);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 15);
     }
 
     SECTION("Source locations for multiple lines and no unicode") {
-        auto &src_file = src_mgr.open_py_src_file(
+        auto src_file = src_mgr.open_py_src_file(
             "./tests/source_location/multiple_lines.py");
 
-        auto src_loc = src_file.get_loc_from_pos(15);
+        auto src_loc = src_file->get_loc_from_pos(15);
         REQUIRE(src_loc.line == 2);
         REQUIRE(src_loc.col == 6);
     }
 
     SECTION("Source locations for unicode") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/unicode.py");
 
-        auto src_loc = src_file.get_loc_from_pos(5);
+        auto src_loc = src_file->get_loc_from_pos(5);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 5);
     }
 
     SECTION("Source locations with a UTF-8 BOM") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/utf8_bom.py");
 
-        auto src_loc = src_file.get_loc_from_pos(3);
+        auto src_loc = src_file->get_loc_from_pos(3);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 1);
 
-        auto src_loc_2 = src_file.get_loc_from_pos(25);
+        auto src_loc_2 = src_file->get_loc_from_pos(25);
         REQUIRE(src_loc_2.line == 2);
         REQUIRE(src_loc_2.col == 1);
     }
@@ -90,41 +90,41 @@ TEST_CASE("Source Location is being tested", "[src_location]") {
     tpy::Source::SourceManager src_mgr;
 
     SECTION("Source locations for one line and no unicode") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/one_line.py");
 
-        auto src_loc = src_file.get_loc_from_pos(14);
+        auto src_loc = src_file->get_loc_from_pos(14);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 15);
     }
 
     SECTION("Source locations for multiple lines and no unicode") {
-        auto &src_file = src_mgr.open_py_src_file(
+        auto src_file = src_mgr.open_py_src_file(
             "./tests/source_location/multiple_lines.py");
 
-        auto src_loc = src_file.get_loc_from_pos(15);
+        auto src_loc = src_file->get_loc_from_pos(15);
         REQUIRE(src_loc.line == 2);
         REQUIRE(src_loc.col == 7);
     }
 
     SECTION("Source locations for unicode") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/unicode.py");
 
-        auto src_loc = src_file.get_loc_from_pos(5);
+        auto src_loc = src_file->get_loc_from_pos(5);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 5);
     }
 
     SECTION("Source locations with a UTF-8 BOM") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/source_location/utf8_bom.py");
 
-        auto src_loc = src_file.get_loc_from_pos(3);
+        auto src_loc = src_file->get_loc_from_pos(3);
         REQUIRE(src_loc.line == 1);
         REQUIRE(src_loc.col == 1);
 
-        auto src_loc_2 = src_file.get_loc_from_pos(25);
+        auto src_loc_2 = src_file->get_loc_from_pos(25);
         REQUIRE(src_loc_2.line == 2);
         REQUIRE(src_loc_2.col == 2);
     }
@@ -163,7 +163,7 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
     tpy::Source::SourceManager src_mgr;
 
     SECTION("Basic delimiter tokens") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/lexer/delimiter_tokens.py");
 
         tpy::Parse::Lexer lexer{src_file};
@@ -187,7 +187,7 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
     }
 
     SECTION("Literal tokens") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/lexer/literal_tokens.py");
 
         tpy::Parse::Lexer lexer{src_file};
@@ -216,7 +216,7 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
     }
 
     SECTION("Keywords and identifiers") {
-        auto &src_file =
+        auto src_file =
             src_mgr.open_py_src_file("./tests/lexer/keywords_identifiers.py");
 
         tpy::Parse::Lexer lexer{src_file};
@@ -237,7 +237,7 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
     }
 
     SECTION("Comments") {
-        auto &src_file = src_mgr.open_py_src_file("./tests/lexer/comments.py");
+        auto src_file = src_mgr.open_py_src_file("./tests/lexer/comments.py");
 
         tpy::Parse::Lexer lexer{src_file};
 
@@ -257,18 +257,27 @@ TEST_CASE("Lexer is being tested", "[lexer]") {
 
 TEST_CASE("Parser is being tested", "[parser]") {
     tpy::Source::SourceManager src_manager;
-    auto &src_file =
+    auto src_file =
         src_manager.open_py_src_file("./tests/parser/list_literal.py");
-    auto &src_file_2 =
+    auto src_file_2 =
         src_manager.open_py_src_file("./tests/parser/set_literal.py");
-    auto &src_file_3 =
+    auto src_file_3 =
         src_manager.open_py_src_file("./tests/parser/dict_literal.py");
 
-    tpy::Parse::Lexer lexer{src_file_3};
+    auto src_file_4 =
+        src_manager.open_py_src_file("./tests/parser/attr_ref_expr.py");
+
+    auto src_file_5 =
+        src_manager.open_py_src_file("./tests/parser/call_expr.py");
+
+    auto src_file_6 =
+        src_manager.open_py_src_file("./tests/parser/slice_expr.py");
+
+    tpy::Parse::Lexer lexer{src_file_6};
     tpy::Utility::ArenaAllocator arena;
     tpy::Parse::Parser parser{lexer, arena};
 
-    auto result = parser.parse_compilation_unit();
+    auto result = parser.parse_py_compilation_unit();
 
     FILE *result_file = fopen("./tests/parser/tree_result.txt", "w");
     if (result) {

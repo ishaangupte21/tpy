@@ -351,4 +351,136 @@ auto ASTNameExprNode::pretty_print(FILE *result_file, int level) -> void {
     fputs("}\n", result_file);
 }
 
+auto ASTAttrRefExprNode::pretty_print(FILE *result_file, int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTAttrRefExprNode\n", result_file);
+    lhs->pretty_print(result_file, level + 2);
+    rhs->pretty_print(result_file, level + 2);
+
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
+auto ASTCallExprNode::pretty_print(FILE *result_file, int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTCallExprNode\n", result_file);
+
+    callee->pretty_print(result_file, level + 2);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+    fputs("[\n", result_file);
+
+    for (auto x : args) {
+        x->pretty_print(result_file, level + 2);
+    }
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+    fputs("]\n", result_file);
+
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
+auto ASTIndexSliceExprNode::pretty_print(FILE *result_file, int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTIndexSliceExprNode\n", result_file);
+
+    slicee->pretty_print(result_file, level + 2);
+    index_expr->pretty_print(result_file, level + 2);
+
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
+auto ASTProperSliceExprNode::pretty_print(FILE *result_file,
+                                          int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTProperSliceExprNode\n", result_file);
+
+    slicee->pretty_print(result_file, level + 2);
+    if (lower_bound) {
+        lower_bound->pretty_print(result_file, level + 2);
+    }
+    if (upper_bound) {
+        upper_bound->pretty_print(result_file, level + 2);
+    }
+
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
 } // namespace tpy::Tree
