@@ -21,7 +21,7 @@ auto Parser::report_error(Source::Span &loc, const char *msg) -> void {
 }
 
 auto Parser::parse_py_expr() -> ReturnType {
-    return parse_py_atom_and_primary_expr();
+    return parse_py_bitwise_or_expr();
 }
 
 // This method will parse atoms and primary expressions as they are defined in
@@ -689,6 +689,347 @@ auto Parser::parse_py_proper_slice_expr(
     advance();
 
     return std::make_pair(node, false);
+}
+
+auto Parser::parse_py_exponentiation_expr() -> ReturnType {
+    // Since this is a binary expression, we need an LHS and RHS.
+    // For this case, the LHS will be a primary expression.
+    auto lhs = parse_py_atom_and_primary_expr();
+    if (!lhs.first) {
+        // In this case, we want to propagate the error up to the caller.
+        return lhs;
+    }
+
+    auto *lhs_node = lhs.first;
+
+    // Now, we need the operator.
+    while (expect(TokenKind::AsteriskAsterisk)) {
+        // Consume the operator.
+        advance();
+
+        // After the operator, we must have an RHS.
+        auto rhs_start = tok.span;
+        auto rhs = parse_py_unary_op_expr();
+
+        if (!rhs.first) {
+            if (!rhs.second) {
+                report_error(rhs_start, "expected expression on right hand "
+                                        "size of the binary operator '**'.");
+                return std::make_pair(nullptr, true);
+            }
+
+            return rhs;
+        }
+
+        // Now, that we have the RHS, we can create the node.
+        lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+            lhs_node, rhs.first, TokenKind::AsteriskAsterisk,
+            lhs_node->loc + rhs.first->loc);
+    }
+
+    // At the end, we can simply return the node.
+    return std::make_pair(lhs_node, false);
+}
+
+auto Parser::parse_py_unary_op_expr() -> ReturnType {
+    // First, we need to check for a unary operator.
+    // If we don't have one, we can keep parsing expressions like normal.
+    switch (tok.kind) {
+    case TokenKind::Plus:
+    case TokenKind::Minus:
+    case TokenKind::Tilda: {
+        // If we do get a unary operator, we need another unary expression after
+        // it.
+        auto op = tok;
+        advance();
+
+        auto expr_start = tok.span;
+        auto expr = parse_py_unary_op_expr();
+
+        if (!expr.first) {
+            if (!expr.second) {
+                report_error(expr_start,
+                             "expected expression after unary operator.");
+                return std::make_pair(nullptr, true);
+            }
+
+            return expr;
+        }
+
+        // Now, we can return the node.
+        auto *node = arena.allocate<Tree::ASTUnaryOpExprNode>(
+            expr.first, op.kind, op.span + expr.first->loc);
+
+        return std::make_pair(node, false);
+    }
+    default: {
+        // If we don't find a unary operator, we can just treat this like a
+        // regular exponentiation expression.
+        return parse_py_exponentiation_expr();
+    }
+    }
+}
+
+auto Parser::parse_py_multiplication_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_unary_op_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have operators of this precedence - '*', '/', and '%', we
+    // want to consume the operator and get an RHS.
+    while (true) {
+        switch (tok.kind) {
+        case TokenKind::Asterisk:
+        case TokenKind::Slash:
+        case TokenKind::Percent: {
+            auto op = tok.kind;
+            advance();
+
+            auto rhs_start = tok.span;
+            auto rhs = parse_py_unary_op_expr();
+
+            if (!rhs.first) {
+                if (!rhs.second) {
+                    report_error(rhs_start, "expected expression on the right "
+                                            "hand side of a binary operator.");
+
+                    return std::make_pair(nullptr, true);
+                }
+
+                return rhs;
+            }
+
+            // Now, we can make the node.
+            lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+                lhs_node, rhs.first, op, lhs_node->loc + rhs.first->loc);
+        }
+        default: {
+            // If we don't find the operator, we want to return the LHS that we
+            // have.
+            return std::make_pair(lhs_node, false);
+        }
+        }
+    }
+}
+
+auto Parser::parse_py_addition_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_multiplication_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have operators of this precedence - '+' and '-', we
+    // want to consume the operator and get an RHS.
+    while (true) {
+        switch (tok.kind) {
+        case TokenKind::Plus:
+        case TokenKind::Minus: {
+            auto op = tok.kind;
+            advance();
+
+            auto rhs_start = tok.span;
+            auto rhs = parse_py_multiplication_expr();
+
+            if (!rhs.first) {
+                if (!rhs.second) {
+                    report_error(rhs_start, "expected expression on the right "
+                                            "hand side of a binary operator.");
+
+                    return std::make_pair(nullptr, true);
+                }
+
+                return rhs;
+            }
+
+            // Now, we can make the node.
+            lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+                lhs_node, rhs.first, op, lhs_node->loc + rhs.first->loc);
+        }
+        default: {
+            // If we don't find the operator, we want to return the LHS that we
+            // have.
+            return std::make_pair(lhs_node, false);
+        }
+        }
+    }
+}
+
+auto Parser::parse_py_bitshift_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_addition_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have operators of this precedence - '<<' and '>>', we
+    // want to consume the operator and get an RHS.
+    while (true) {
+        switch (tok.kind) {
+        case TokenKind::GreaterGreater:
+        case TokenKind::LessLess: {
+            auto op = tok.kind;
+            advance();
+
+            auto rhs_start = tok.span;
+            auto rhs = parse_py_addition_expr();
+
+            if (!rhs.first) {
+                if (!rhs.second) {
+                    report_error(rhs_start, "expected expression on the right "
+                                            "hand side of a binary operator.");
+
+                    return std::make_pair(nullptr, true);
+                }
+
+                return rhs;
+            }
+
+            // Now, we can make the node.
+            lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+                lhs_node, rhs.first, op, lhs_node->loc + rhs.first->loc);
+        }
+        default: {
+            // If we don't find the operator, we want to return the LHS that we
+            // have.
+            return std::make_pair(lhs_node, false);
+        }
+        }
+    }
+}
+
+auto Parser::parse_py_bitwise_and_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_bitshift_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have the '&' operator, we must keep getting an RHS.
+    while (expect(TokenKind::Ampersand)) {
+        advance();
+
+        auto rhs_start = tok.span;
+        auto rhs = parse_py_bitshift_expr();
+
+        if (!rhs.first) {
+            if (!rhs.second) {
+                report_error(rhs_start, "expected expression on the right hand "
+                                        "side of the binary operator '&'.");
+
+                return std::make_pair(nullptr, true);
+            }
+
+            return rhs;
+        }
+
+        // Now, we can make the node.
+        lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+            lhs_node, rhs.first, TokenKind::Ampersand,
+            lhs_node->loc + rhs.first->loc);
+    }
+
+    return std::make_pair(lhs_node, false);
+}
+
+auto Parser::parse_py_bitwise_xor_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_bitwise_and_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have the '^' operator, we must keep getting an RHS.
+    while (expect(TokenKind::Caret)) {
+        advance();
+
+        auto rhs_start = tok.span;
+        auto rhs = parse_py_bitwise_and_expr();
+
+        if (!rhs.first) {
+            if (!rhs.second) {
+                report_error(rhs_start, "expected expression on the right hand "
+                                        "side of the binary operator '^'.");
+
+                return std::make_pair(nullptr, true);
+            }
+
+            return rhs;
+        }
+
+        // Now, we can make the node.
+        lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+            lhs_node, rhs.first, TokenKind::Caret,
+            lhs_node->loc + rhs.first->loc);
+    }
+
+    return std::make_pair(lhs_node, false);
+}
+
+auto Parser::parse_py_bitwise_or_expr() -> ReturnType {
+    // First, we need to obtain an LHS.
+    auto lhs_start = tok.span;
+    auto lhs = parse_py_bitwise_xor_expr();
+
+    if (!lhs.first) {
+        // Here, we just want to propagate the error upto the caller.
+        return lhs;
+    }
+
+    auto lhs_node = lhs.first;
+
+    // Now, while we have the '|' operator, we must keep getting an RHS.
+    while (expect(TokenKind::Bar)) {
+        advance();
+
+        auto rhs_start = tok.span;
+        auto rhs = parse_py_bitwise_xor_expr();
+
+        if (!rhs.first) {
+            if (!rhs.second) {
+                report_error(rhs_start, "expected expression on the right hand "
+                                        "side of the binary operator '|'.");
+
+                return std::make_pair(nullptr, true);
+            }
+
+            return rhs;
+        }
+
+        // Now, we can make the node.
+        lhs_node = arena.allocate<Tree::ASTBinaryOpExprNode>(
+            lhs_node, rhs.first, TokenKind::Bar,
+            lhs_node->loc + rhs.first->loc);
+    }
+
+    return std::make_pair(lhs_node, false);
 }
 
 } // namespace tpy::Parse

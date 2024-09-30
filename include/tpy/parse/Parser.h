@@ -63,15 +63,32 @@ class Parser {
     auto parse_py_set_or_dict_expr() -> ReturnType;
 
     auto parse_py_dict_expr(Tree::ASTNode *first_expr,
-                         Source::Span start) -> ReturnType;
-    
+                            Source::Span start) -> ReturnType;
+
     auto parse_py_attr_ref_expr(Tree::ASTNode *expr) -> ReturnType;
 
     auto parse_py_call_expr(Tree::ASTNode *callee) -> ReturnType;
 
     auto parse_py_slice_expr(Tree::ASTNode *slicee) -> ReturnType;
 
-    auto parse_py_proper_slice_expr(Tree::ASTNode *slicee, Tree::ASTNode *lower_bound) -> ReturnType;
+    auto parse_py_proper_slice_expr(Tree::ASTNode *slicee,
+                                    Tree::ASTNode *lower_bound) -> ReturnType;
+
+    auto parse_py_exponentiation_expr() -> ReturnType;
+
+    auto parse_py_unary_op_expr() -> ReturnType;
+
+    auto parse_py_multiplication_expr() -> ReturnType;
+
+    auto parse_py_addition_expr() -> ReturnType;
+
+    auto parse_py_bitshift_expr() -> ReturnType;
+
+    auto parse_py_bitwise_and_expr() -> ReturnType;
+
+    auto parse_py_bitwise_xor_expr() -> ReturnType;
+
+    auto parse_py_bitwise_or_expr() -> ReturnType;
 
   public:
     Parser(Lexer &lexer, Utility::ArenaAllocator &arena)

@@ -6,6 +6,7 @@
 #define TPY_TREE_ASTEXPR_H
 
 #include "ASTNode.h"
+#include "tpy/parse/Token.h"
 #include "tpy/source/Span.h"
 
 #include <vector>
@@ -183,7 +184,30 @@ class ASTProperSliceExprNode : public ASTNode {
                            ASTNode *upper_bound, Source::Span loc)
         : ASTNode{loc}, slicee{slicee}, lower_bound{lower_bound},
           upper_bound{upper_bound} {}
-    
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+class ASTBinaryOpExprNode : public ASTNode {
+  public:
+    ASTNode *lhs, *rhs;
+    Parse::TokenKind op;
+
+    ASTBinaryOpExprNode(ASTNode *lhs, ASTNode *rhs, Parse::TokenKind op,
+                        Source::Span loc)
+        : ASTNode{loc}, lhs{lhs}, rhs{rhs}, op{op} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
+class ASTUnaryOpExprNode : public ASTNode {
+  public:
+    ASTNode *expr;
+    Parse::TokenKind op;
+
+    ASTUnaryOpExprNode(ASTNode *expr, Parse::TokenKind op, Source::Span loc)
+        : ASTNode{loc}, expr{expr}, op{op} {}
+
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
 

@@ -273,7 +273,10 @@ TEST_CASE("Parser is being tested", "[parser]") {
     auto src_file_6 =
         src_manager.open_py_src_file("./tests/parser/slice_expr.py");
 
-    tpy::Parse::Lexer lexer{src_file_6};
+    auto src_file_7 =
+        src_manager.open_py_src_file("./tests/parser/binary_expr.py");
+
+    tpy::Parse::Lexer lexer{src_file_7};
     tpy::Utility::ArenaAllocator arena;
     tpy::Parse::Parser parser{lexer, arena};
 
