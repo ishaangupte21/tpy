@@ -211,6 +211,18 @@ class ASTUnaryOpExprNode : public ASTNode {
     virtual auto pretty_print(FILE *result_file, int level) -> void override;
 };
 
+class ASTTernaryOpExprNode : public ASTNode {
+  public:
+    ASTNode *condition, *true_case, *false_case;
+
+    ASTTernaryOpExprNode(ASTNode *condition, ASTNode *true_case,
+                         ASTNode *false_case, Source::Span loc)
+        : ASTNode{loc}, condition{condition}, true_case{true_case},
+          false_case{false_case} {}
+
+    virtual auto pretty_print(FILE *result_file, int level) -> void override;
+};
+
 } // namespace tpy::Tree
 
 #endif

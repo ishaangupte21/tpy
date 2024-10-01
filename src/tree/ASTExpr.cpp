@@ -557,4 +557,33 @@ auto ASTUnaryOpExprNode::pretty_print(FILE *result_file, int level) -> void {
     fputs("}\n", result_file);
 }
 
+auto ASTTernaryOpExprNode::pretty_print(FILE *result_file, int level) -> void {
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+    fputs("{\n", result_file);
+
+    // Now, we need to indent to level + 1.
+    for (int i = 0; i < level + 1; i++) {
+        putc(' ', result_file);
+    }
+
+    // Node kind.
+    fputs("kind: ASTTernaryOpExprNode\n", result_file);
+
+    condition->pretty_print(result_file, level + 2);
+    true_case->pretty_print(result_file, level + 2);
+    false_case->pretty_print(result_file, level + 2);
+
+    // Indentation space based on the level.
+    // 4 spaces per level.
+    for (int i = 0; i < level; i++) {
+        putc(' ', result_file);
+    }
+
+    fputs("}\n", result_file);
+}
+
 } // namespace tpy::Tree

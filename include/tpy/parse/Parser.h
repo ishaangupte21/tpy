@@ -7,6 +7,7 @@
 #define TPY_parse_py_PARSER_H
 
 #include "Lexer.h"
+#include "tpy/parse/Token.h"
 #include "tpy/source/Span.h"
 #include "tpy/tree/ASTNode.h"
 #include "tpy/utility/ArenaAllocator.h"
@@ -25,6 +26,10 @@ class Parser {
     // next step to take within the parser.
     Token tok = Token::dummy();
 
+    // We need a second lookahead token to differentiate assignment expressions
+    // from other expressions.
+    Token tok_2 = Token::dummy();
+
     // This member represents the arena allocator that will be used to quickly
     // allocate the AST nodes as they can all eventually be deallocated
     // together.
@@ -39,7 +44,16 @@ class Parser {
 
     // This method will advance in the input by getting the next token from
     // the lexer.
-    auto advance() -> void { lexer.lex_next_tok(tok); }
+    auto advance() -> void {
+        // If the 2nd lookahead token is not a dummy, then that is the token we
+        // need.
+        if (tok_2.kind != TokenKind::Dummy) {
+            tok = std::move(tok_2);
+            tok_2 = Token::dummy();
+        } else {
+            lexer.lex_next_tok(tok);
+        }
+    }
 
     // This method will report errors.
     auto report_error(Source::Span &loc, const char *msg) -> void;
@@ -89,6 +103,18 @@ class Parser {
     auto parse_py_bitwise_xor_expr() -> ReturnType;
 
     auto parse_py_bitwise_or_expr() -> ReturnType;
+
+    auto parse_py_comparison_expr() -> ReturnType;
+
+    auto parse_py_unary_not_expr() -> ReturnType;
+
+    auto parse_py_logical_and_expr() -> ReturnType;
+
+    auto parse_py_logical_or_expr() -> ReturnType;
+
+    auto parse_py_ternary_op_expr() -> ReturnType;
+
+    auto parse_py_assignment_expr() -> ReturnType;
 
   public:
     Parser(Lexer &lexer, Utility::ArenaAllocator &arena)
